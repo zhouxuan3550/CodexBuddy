@@ -18,7 +18,7 @@ final class CodexUsageBarApp: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let store = UsageStore(provider: MockUsageProvider())
+        let store = UsageStore(provider: CodexUsageProvider())
         let controller = StatusBarController(store: store)
         self.store = store
         self.statusBarController = controller
@@ -33,7 +33,7 @@ final class CodexUsageBarApp: NSObject, NSApplicationDelegate {
 
         Task { await store.refresh() }
 
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak store] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak store] _ in
             guard let store else { return }
             Task { @MainActor in
                 await store.refresh()

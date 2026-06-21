@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class StatusBarController: NSObject {
+final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let store: UsageStore
 
@@ -33,6 +33,7 @@ final class StatusBarController: NSObject {
 
     private func rebuildMenu() {
         let menu = NSMenu()
+        menu.delegate = self
 
         let titleItem = NSMenuItem(title: "Usage", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
@@ -80,6 +81,10 @@ final class StatusBarController: NSObject {
         menu.addItem(quitItem)
 
         statusItem.menu = menu
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        Task { await store.refresh() }
     }
 
     private func disabledItem(_ title: String) -> NSMenuItem {

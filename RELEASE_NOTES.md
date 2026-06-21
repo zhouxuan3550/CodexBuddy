@@ -4,23 +4,24 @@
 
 ## 功能
 
-- macOS 顶部状态栏常驻显示 Usage 简化信息：`h89 w32`
+- macOS 顶部状态栏常驻显示 Codex 剩余用量：`h45 w25`
 - 点击状态栏后显示完整 Usage 信息
-- 支持手动刷新
+- 支持手动刷新，自动刷新间隔为 5 秒
+- 点击状态栏菜单时会立即刷新一次
 - 支持打开官方 Usage 页面
 - 支持退出 App
 - 默认不显示 Dock 图标
 
 ## 数据源
 
-当前版本使用 Mock 数据：
+当前版本从 Codex 本地日志 `~/.codex/logs_2.sqlite` 读取官方响应头：
 
-```text
-5 小时 89% · 23:31
-1 周 32% · 6月26日
-```
+- `x-codex-primary-used-percent`
+- `x-codex-secondary-used-percent`
+- `x-codex-primary-reset-at`
+- `x-codex-secondary-reset-at`
 
-真实官方数据源入口已预留在 `CodexUsageProvider`。在没有稳定官方 API、CLI 输出或官方本地状态文件前，不做 Cookie 抓取、浏览器数据库读取或模拟登录。
+状态栏显示的是剩余百分比，即 `100 - used-percent`。本项目不读取 Cookie、不读取浏览器数据库、不读取 `auth.json`、不模拟登录、不上传用户数据。
 
 ## 安装
 
