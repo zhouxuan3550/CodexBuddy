@@ -73,6 +73,17 @@ enum L10nKey {
 }
 
 enum L10n {
+    static func launchAtLoginTitle(isEnabled: Bool, language: AppLanguage) -> String {
+        let state: String
+        switch language.resolved {
+        case .simplifiedChinese:
+            state = isEnabled ? "已开启" : "已关闭"
+        case .english, .system:
+            state = isEnabled ? "On" : "Off"
+        }
+        return "\(text(.launchAtLogin, language: language)) · \(state)"
+    }
+
     static func text(_ key: L10nKey, language: AppLanguage) -> String {
         switch language.resolved {
         case .simplifiedChinese:

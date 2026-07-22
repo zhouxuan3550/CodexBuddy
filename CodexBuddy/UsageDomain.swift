@@ -19,7 +19,7 @@ enum QuotaLevel: Equatable {
 
     static func forRemaining(_ percent: Int) -> QuotaLevel {
         if percent < 20 { return .critical }
-        if percent > 80 { return .healthy }
+        if percent > 60 { return .healthy }
         return .standard
     }
 }

@@ -8,7 +8,10 @@ extension MenuBarCoordinator {
         let menu = NSMenu()
 
         let launchItem = NSMenuItem(
-            title: L10n.text(.launchAtLogin, language: language),
+            title: L10n.launchAtLoginTitle(
+                isEnabled: settings.launchAtLoginEnabled,
+                language: language
+            ),
             action: #selector(toggleLaunchAtLogin),
             keyEquivalent: ""
         )

@@ -5,6 +5,7 @@ struct CoreTests {
     @MainActor
     static func main() async {
         testCodexBuddyIdentity()
+        testLaunchAtLoginStatusIsExplicit()
         testDomainFormattingAndThresholds()
         testSettingsMigrationAndDefaults()
         await testSessionFixture()
@@ -22,6 +23,25 @@ struct CoreTests {
         expect(ProductIdentity.name == "CodexBuddy", "product name is CodexBuddy")
         expect(ProductIdentity.repository == "zhouxuan3550/CodexBuddy", "updates use the CodexBuddy repository")
         expect(ProductIdentity.bundleIdentifier == "com.zhouxuan3550.codexbuddy", "bundle identifier uses CodexBuddy")
+    }
+
+    private static func testLaunchAtLoginStatusIsExplicit() {
+        expect(
+            L10n.launchAtLoginTitle(isEnabled: true, language: .simplifiedChinese) == "登录时启动 · 已开启",
+            "Chinese launch-at-login title shows enabled state"
+        )
+        expect(
+            L10n.launchAtLoginTitle(isEnabled: false, language: .simplifiedChinese) == "登录时启动 · 已关闭",
+            "Chinese launch-at-login title shows disabled state"
+        )
+        expect(
+            L10n.launchAtLoginTitle(isEnabled: true, language: .english) == "Launch at Login · On",
+            "English launch-at-login title shows enabled state"
+        )
+        expect(
+            L10n.launchAtLoginTitle(isEnabled: false, language: .english) == "Launch at Login · Off",
+            "English launch-at-login title shows disabled state"
+        )
     }
 
     private static func testDomainFormattingAndThresholds() {
@@ -44,8 +64,8 @@ struct CoreTests {
         expect(reading.credits?.finiteBalance == "2500", "finite credits are displayed")
         expect(QuotaLevel.forRemaining(19) == .critical, "below 20 percent is critical")
         expect(QuotaLevel.forRemaining(20) == .standard, "20 percent remains standard")
-        expect(QuotaLevel.forRemaining(80) == .standard, "80 percent remains standard")
-        expect(QuotaLevel.forRemaining(81) == .healthy, "above 80 percent is healthy")
+        expect(QuotaLevel.forRemaining(60) == .standard, "60 percent remains standard")
+        expect(QuotaLevel.forRemaining(61) == .healthy, "above 60 percent is healthy")
         expect(reading.source.displayName(language: .english) == "Live event", "source name is localized")
         expect(UpdateChecker.defaultRepository == ProductIdentity.repository, "updates use the public repository")
         expect(
