@@ -26,8 +26,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           assets=(
+            build/CodexBuddy-v*-arm64.dmg
+            build/CodexBuddy-v*-arm64.dmg.sha256
             build/CodexBuddy-v*-arm64.zip
             build/CodexBuddy-v*-arm64.zip.sha256
+            build/CodexBuddy-v*-x86_64.dmg
+            build/CodexBuddy-v*-x86_64.dmg.sha256
             build/CodexBuddy-v*-x86_64.zip
             build/CodexBuddy-v*-x86_64.zip.sha256
           )

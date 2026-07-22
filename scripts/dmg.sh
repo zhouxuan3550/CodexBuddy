@@ -3,16 +3,16 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/version.sh"
+source "$ROOT_DIR/scripts/artifact-name.sh"
 APP_NAME="${APP_NAME:-CodexBuddy}"
 VERSION="${VERSION:-$APP_VERSION}"
+PACKAGE_ARCHITECTURE="${PACKAGE_ARCHITECTURE:-}"
 BUILD_DIR="$ROOT_DIR/build"
-APP_PATH="$("$ROOT_DIR/scripts/build.sh")"
-DMG_NAME="$APP_NAME-v$VERSION.dmg"
+"$ROOT_DIR/scripts/package.sh" >/dev/null
+APP_PATH="$BUILD_DIR/$APP_NAME.app"
+DMG_NAME="$(artifact_dmg_name "$APP_NAME" "$VERSION" "$PACKAGE_ARCHITECTURE")"
 DMG_PATH="$BUILD_DIR/$DMG_NAME"
-STAGING_DIR="$BUILD_DIR/dmg-staging"
-
-# Ad-hoc codesign
-codesign --force --deep --sign - "$APP_PATH"
+STAGING_DIR="$BUILD_DIR/dmg-staging-${PACKAGE_ARCHITECTURE:-default}"
 
 # Prepare staging directory
 rm -rf "$STAGING_DIR" "$DMG_PATH"
@@ -30,12 +30,9 @@ hdiutil create \
   -quiet
 
 rm -rf "$STAGING_DIR"
-
-# Also produce ZIP + SHA-256 for auto-update
-ZIP_NAME="$APP_NAME-v$VERSION.zip"
-ZIP_PATH="$BUILD_DIR/$ZIP_NAME"
-rm -f "$ZIP_PATH" "$ZIP_PATH.sha256"
-ditto -c -k --keepParent --norsrc --noextattr "$APP_PATH" "$ZIP_PATH"
-(cd "$BUILD_DIR" && shasum -a 256 "$ZIP_NAME" > "$ZIP_NAME.sha256")
+(
+  cd "$BUILD_DIR"
+  shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
+)
 
 echo "$DMG_PATH"
