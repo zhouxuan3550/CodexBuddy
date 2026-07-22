@@ -1,3 +1,4 @@
-build/
-.DS_Store
-踩坑日志.dm
+/build/
+/.DS_Store
+*.xcuserstate
+*.xcuserdata/
