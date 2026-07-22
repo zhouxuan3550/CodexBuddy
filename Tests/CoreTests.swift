@@ -5,6 +5,7 @@ struct CoreTests {
     @MainActor
     static func main() async {
         testCodexBuddyIdentity()
+        testOfficialUsageMenu()
         testLaunchAtLoginStatusIsExplicit()
         testDomainFormattingAndThresholds()
         testSettingsMigrationAndDefaults()
@@ -23,6 +24,21 @@ struct CoreTests {
         expect(ProductIdentity.name == "CodexBuddy", "product name is CodexBuddy")
         expect(ProductIdentity.repository == "zhouxuan3550/CodexBuddy", "updates use the CodexBuddy repository")
         expect(ProductIdentity.bundleIdentifier == "com.zhouxuan3550.codexbuddy", "bundle identifier uses CodexBuddy")
+    }
+
+    private static func testOfficialUsageMenu() {
+        expect(
+            L10n.text(.openOfficialUsage, language: .simplifiedChinese) == "官方 Usage",
+            "Chinese official Usage menu title is concise"
+        )
+        expect(
+            L10n.text(.openOfficialUsage, language: .english) == "Official Usage",
+            "English official Usage menu title is concise"
+        )
+        expect(
+            ProductIdentity.officialUsageURL.absoluteString == "https://chatgpt.com/codex/settings/usage",
+            "official Usage menu opens the current OpenAI Usage page"
+        )
     }
 
     private static func testLaunchAtLoginStatusIsExplicit() {

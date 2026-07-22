@@ -6,4 +6,5 @@ enum ProductIdentity {
     nonisolated static let repositoryName = "CodexBuddy"
     nonisolated static let repository = "\(repositoryOwner)/\(repositoryName)"
     nonisolated static let bundleIdentifier = "com.zhouxuan3550.codexbuddy"
+    nonisolated static let officialUsageURL = URL(string: "https://chatgpt.com/codex/settings/usage")!
 }

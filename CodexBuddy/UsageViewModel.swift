@@ -99,8 +99,7 @@ final class UsageViewModel: ObservableObject {
     }
 
     func openOfficialUsagePage() {
-        guard let url = URL(string: "https://chatgpt.com/codex/usage") else { return }
-        NSWorkspace.shared.open(url)
+        NSWorkspace.shared.open(ProductIdentity.officialUsageURL)
     }
 
     private func apply(_ signal: UsageHealthSignal?) {
