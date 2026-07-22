@@ -2,15 +2,17 @@ import Foundation
 
 struct MockUsageProvider: UsageProvider {
     func fetchUsage() async throws -> UsageSnapshot {
-        try await Task.sleep(nanoseconds: 250_000_000)
         return UsageSnapshot(
-            shortWindowLabel: "5 小时",
-            shortWindowPercent: 89,
-            shortWindowResetText: "23:31",
-            weekWindowLabel: "1 周",
-            weekWindowPercent: 32,
-            weekWindowResetText: "6月26日",
-            updatedAt: Date()
+            shortWindow: nil,
+            weekWindow: UsageWindow(
+                minutes: 10_080,
+                remainingPercent: 17,
+                resetAt: Date().addingTimeInterval(3.4 * 86_400)
+            ),
+            updatedAt: Date(),
+            source: .sessionEvent,
+            planType: "plus",
+            credits: CreditsInfo(hasCredits: true, unlimited: false, balance: "2500")
         )
     }
 }

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+APP_VERSION="0.6.0"
+APP_BUILD_NUMBER="12"

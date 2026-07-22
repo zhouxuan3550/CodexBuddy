@@ -1,30 +1,28 @@
-# CodexUsageBar v0.1.0
+# CodexUsage v0.6.0 体验版
 
-首个可运行版本。
+v0.6.0 聚焦数据可靠性和菜单栏克制显示：日志格式变化时不再静默卡住，同时新增带 `H` / `W` 前缀的单值模式。
 
-## 功能
+## 新功能与改进
 
-- macOS 顶部状态栏常驻显示 Codex 剩余用量：`h45 w25`
-- 点击状态栏后显示完整 Usage 信息
-- 支持手动刷新，自动刷新间隔为 5 秒
-- 点击状态栏菜单时会立即刷新一次
-- 支持打开官方 Usage 页面
-- 支持退出 App
-- 默认不显示 Dock 图标
+- 新增菜单栏“单值（最紧张）”模式，只显示剩余最少的窗口，例如 `W 21%`；默认仍保持双窗口显示
+- 单值模式继续使用低于 20% 红色、高于 80% 绿色的现有规则，并保留过期标记
+- 悬停菜单栏可查看完整双窗口状态和更新时间
+- 新增 Session 日志格式异常检测：两个不同的异常事件连续出现后才提示，重复刷新同一事件不会误报
+- Session 解析异常但 SQLite 响应头仍可用时，继续显示备用数据并单独给出诊断提示
+- 新增脱敏 Session Fixture，覆盖标准双窗口、命名反转和异常 `rate_limits` 格式
+- 历史记录不再重复保存同一事件，修复大量重复时间戳干扰耗尽估算的问题
+- 耗尽估算改为最近 15 分钟单调消耗段，至少需要 3 个不同事件时间，并自动排除上一个重置周期
+- 续航算法目前只用于现有耗尽估算展示，暂不新增主动通知，先观察误报情况
+- 构建、ZIP 和 DMG 统一读取同一个版本源；版本升级至 `0.6.0`，构建号升级至 `12`
 
-## 数据源
+## 隐私
 
-当前版本从 Codex 本地日志 `~/.codex/logs_2.sqlite` 读取官方响应头：
+数据源仍完全位于本机：解析 `~/.codex/sessions` 中的官方 `token_count` 事件与 `rate_limits`，并查询 `~/.codex/logs_2.sqlite` 中的官方 Usage 响应头，再采用较新的结果。不读取 Cookie、浏览器数据库或 `auth.json`，不模拟登录，不上传任何信息。
 
-- `x-codex-primary-used-percent`
-- `x-codex-secondary-used-percent`
-- `x-codex-primary-reset-at`
-- `x-codex-secondary-reset-at`
+## 安装提示
 
-状态栏显示的是剩余百分比，即 `100 - used-percent`。本项目不读取 Cookie、不读取浏览器数据库、不读取 `auth.json`、不模拟登录、不上传用户数据。
+下载 `CodexUsage-v0.6.0.zip`，解压后将 App 放入 `~/Applications` 或 `/Applications` 再打开。直接启动新版时，它会自动退出仍在运行的旧版实例。
 
-## 安装
+本地构建和自动发布产物使用 ad-hoc 签名。若 macOS 拦截，可在"系统设置 → 隐私与安全性"中允许打开。正式公开分发建议使用 Developer ID 签名和 Apple notarization。
 
-下载 `CodexUsageBar-v0.1.0.zip`，解压后打开 `CodexUsageBar.app`。
-
-如果 macOS 拦截未签名 App，可在“系统设置 -> 隐私与安全性”里允许打开，或自行从源码构建。
+本版本基于 [qiyasxsx/CodexUsageBar](https://github.com/qiyasxsx/CodexUsageBar) 二次开发，并已获得上游作者对本版本公开分发的授权。本项目为非官方第三方工具，与 OpenAI 不存在隶属、赞助或背书关系。

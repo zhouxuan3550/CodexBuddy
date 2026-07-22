@@ -1,22 +1,30 @@
 import Foundation
 
-enum UsageProviderError: LocalizedError, Equatable {
+enum UsageProviderError: Error, Equatable {
     case dataSourceUnavailable
     case notLoggedIn
     case unreadableUsage
+    case schemaDrift
+    case schemaDriftEvidence(Date)
+}
 
-    var errorDescription: String? {
-        switch self {
-        case .dataSourceUnavailable:
-            return "当前没有可用的官方 Usage 数据源。"
-        case .notLoggedIn:
-            return "未检测到 Codex 登录状态。请先登录 Codex 后重试。"
-        case .unreadableUsage:
-            return "无法自动读取官方 Usage。请打开官方 Usage 页面查看。"
-        }
-    }
+enum UsageProviderDiagnostic: Equatable {
+    case sessionSchemaDrift(evidenceAt: Date)
+}
+
+struct UsageFetchResult {
+    let snapshot: UsageSnapshot
+    let diagnostic: UsageProviderDiagnostic?
 }
 
 protocol UsageProvider {
     func fetchUsage() async throws -> UsageSnapshot
+
+    func fetchUsageResult() async throws -> UsageFetchResult
+}
+
+extension UsageProvider {
+    func fetchUsageResult() async throws -> UsageFetchResult {
+        UsageFetchResult(snapshot: try await fetchUsage(), diagnostic: nil)
+    }
 }
