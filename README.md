@@ -118,7 +118,3 @@ ICON_SOURCE=/absolute/path/to/icon.png \
 git tag v0.6.0
 git push origin v0.6.0
 ```
-
-## 来源与授权
-
-本项目基于 [qiyasxsx/CodexUsageBar](https://github.com/qiyasxsx/CodexUsageBar) 二次开发，并已获得上游作者对本版本公开分发的授权。仓库目前未声明面向第三方再分发的开源许可证；如需复制、修改或再发布，请先取得相应授权。
