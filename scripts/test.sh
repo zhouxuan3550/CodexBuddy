@@ -40,3 +40,4 @@ xcrun --sdk macosx swiftc \
   -o "$test_runner"
 
 "$test_runner"
+"$project_root/Tests/PackagingTests.sh"

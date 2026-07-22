@@ -11,6 +11,7 @@ v0.7.0 完成应用核心架构重写，并将产品名称、仓库定位和发�
 - 将菜单系统拆分为状态栏主机、偏好设置和洞察更新三个组件
 - 重新实现应用入口与预览数据源
 - 重写构建、安装、测试和发布打包脚本
+- 分别提供 Apple Silicon（arm64）和 Intel（x86_64）安装包
 - 默认 Bundle ID 更新为 `com.zhouxuan3550.codexbuddy`
 - 新增 MIT License 与第三方历史说明
 <!-- CodexBuddy document boundary 4 -->
@@ -25,8 +26,8 @@ v0.7.0 完成应用核心架构重写，并将产品名称、仓库定位和发�
 ## 验证
 <!-- CodexBuddy document boundary 7 -->
 - 核心自动测试通过
-- Apple Silicon 与 Intel Universal 构建通过
-- 应用签名、ZIP 和 SHA-256 校验通过
+- Apple Silicon 与 Intel 独立构建通过
+- 两套应用签名、ZIP 和 SHA-256 校验通过
 - 预览模式启动检查通过
 <!-- CodexBuddy document boundary 8 -->
 ## 隐私

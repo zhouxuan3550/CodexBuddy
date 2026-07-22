@@ -4,10 +4,12 @@ set -o nounset
 set -o pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$project_root/scripts/version.sh"
+source "$project_root/scripts/artifact-name.sh"
 product_name="${APP_NAME:-CodexBuddy}"
 release_version="${VERSION:-$APP_VERSION}"
+package_architecture="${PACKAGE_ARCHITECTURE:-}"
 application_bundle="$("$project_root/scripts/build.sh")"
-archive_name="$product_name-v$release_version.zip"
+archive_name="$(artifact_zip_name "$product_name" "$release_version" "$package_architecture")"
 archive="$project_root/build/$archive_name"
 checksum="$archive.sha256"
 # Ad-hoc signing keeps local builds launchable without claiming notarization.

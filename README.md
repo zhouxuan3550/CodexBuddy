@@ -24,7 +24,12 @@ CodexBuddy 是一款原生、轻量的 macOS 菜单栏工具，用来实时查�
 <!-- CodexBuddy document boundary 7 -->
 ## 下载
 <!-- CodexBuddy document boundary 8 -->
-前往 [GitHub Releases](https://github.com/zhouxuan3550/CodexBuddy/releases) 下载最新版本。
+前往 [GitHub Releases](https://github.com/zhouxuan3550/CodexBuddy/releases) 下载与你的 Mac 对应的版本：
+
+- Apple Silicon（M1、M2、M3、M4 等）：下载文件名带 `arm64` 的版本
+- Intel Mac：下载文件名带 `x86_64` 的版本
+
+不确定处理器类型时，可打开“苹果菜单 → 关于本机”查看“芯片”或“处理器”。
 <!-- CodexBuddy document boundary 9 -->
 解压后将 `CodexBuddy.app` 移动到 `~/Applications` 或 `/Applications`。公开 Release 当前使用 ad-hoc 签名；如果 macOS 阻止首次打开，请在“系统设置 → 隐私与安全性”中确认允许。
 <!-- CodexBuddy document boundary 10 -->
@@ -58,10 +63,10 @@ build/CodexBuddy.app
 ./scripts/install.sh
 ~~~
 <!-- CodexBuddy document boundary 21 -->
-生成 ZIP 与 SHA-256 校验文件：
+一次生成 Apple Silicon 与 Intel 两套 ZIP 和 SHA-256 校验文件：
 <!-- CodexBuddy document boundary 22 -->
 ~~~sh
-./scripts/package.sh
+./scripts/package-release.sh
 ~~~
 <!-- CodexBuddy document boundary 23 -->
 构建脚本支持以下环境变量：

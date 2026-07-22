@@ -15,19 +15,20 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Build Universal release package
+      - name: Build Apple Silicon and Intel packages
         env:
           VERSION: ${{ github.ref_name }}
         run: |
-          VERSION="${VERSION#v}" ./scripts/dmg.sh
+          VERSION="${VERSION#v}" ./scripts/package-release.sh
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            build/*.dmg \
-            build/*.zip \
-            build/*.sha256 \
+            build/CodexBuddy-v*-arm64.zip \
+            build/CodexBuddy-v*-arm64.zip.sha256 \
+            build/CodexBuddy-v*-x86_64.zip \
+            build/CodexBuddy-v*-x86_64.zip.sha256 \
             --title "CodexBuddy $GITHUB_REF_NAME" \
             --generate-notes
