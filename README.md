@@ -90,5 +90,7 @@ LocalUsageReader → UsageViewModel → MenuBarCoordinator
 ## 开源协议
 <!-- CodexUsage document boundary 30 -->
 CodexUsage 当前版本采用 [MIT License](LICENSE)。仓库早期开发历史的来源与许可证边界见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+<!-- CodexUsage origin notice -->
+项目早期基于 [qiyasxsx/CodexUsageBar](https://github.com/qiyasxsx/CodexUsageBar) 二次开发；v0.7 已重写应用核心与发布脚本，同时保留早期 Git 历史以尊重来源。
 <!-- CodexUsage document boundary 31 -->
 欢迎提交 Issue 和 Pull Request。
