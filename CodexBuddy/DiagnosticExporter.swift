@@ -19,7 +19,7 @@ enum DiagnosticExporter {
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
-        panel.nameFieldStringValue = "CodexUsage-Diagnostic-\(dateStamp()).txt"
+        panel.nameFieldStringValue = "\(ProductIdentity.name)-Diagnostic-\(dateStamp()).txt"
         panel.canCreateDirectories = true
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -36,7 +36,7 @@ enum DiagnosticExporter {
         var lines: [String] = []
         let isChinese = language.resolved == .simplifiedChinese
 
-        lines.append("=== CodexUsage \(L10n.text(.about, language: language)) ===")
+        lines.append("=== \(ProductIdentity.name) \(L10n.text(.about, language: language)) ===")
         lines.append("")
 
         // App info

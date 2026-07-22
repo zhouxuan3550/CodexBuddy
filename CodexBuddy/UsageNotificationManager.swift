@@ -74,7 +74,7 @@ final class UsageNotificationManager {
         content.sound = .default
 
         let request = UNNotificationRequest(
-            identifier: "CodexUsage.resetCountdown.\(kind).\(resetIdentifier)",
+            identifier: "\(ProductIdentity.name).resetCountdown.\(kind).\(resetIdentifier)",
             content: content,
             trigger: nil
         )
@@ -108,7 +108,7 @@ final class UsageNotificationManager {
         content.sound = .default
 
         let request = UNNotificationRequest(
-            identifier: "CodexUsage.\(kind).\(resetIdentifier).\(threshold)",
+            identifier: "\(ProductIdentity.name).\(kind).\(resetIdentifier).\(threshold)",
             content: content,
             trigger: nil
         )

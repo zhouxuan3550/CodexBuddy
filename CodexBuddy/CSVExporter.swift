@@ -24,7 +24,7 @@ enum CSVExporter {
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
-        panel.nameFieldStringValue = "CodexUsage-History-\(dateStamp()).csv"
+        panel.nameFieldStringValue = "\(ProductIdentity.name)-History-\(dateStamp()).csv"
         panel.canCreateDirectories = true
 
         guard panel.runModal() == .OK, let url = panel.url else { return }

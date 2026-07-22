@@ -3,8 +3,8 @@ import Foundation
 /// Checks GitHub Releases for new versions silently at launch.
 @MainActor
 final class UpdateChecker {
-    nonisolated static let defaultRepoOwner = "zhouxuan3550"
-    nonisolated static let defaultRepoName = "CodexUsage"
+    nonisolated static let defaultRepoOwner = ProductIdentity.repositoryOwner
+    nonisolated static let defaultRepoName = ProductIdentity.repositoryName
     nonisolated static var defaultRepository: String { "\(defaultRepoOwner)/\(defaultRepoName)" }
 
     struct ReleaseInfo {

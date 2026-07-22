@@ -189,7 +189,7 @@ final class UsageSummaryMenuView: NSView {
     }
 
     private func makeHeader() -> NSStackView {
-        let versionLabel = NSTextField(labelWithString: "CodexUsage \(displayVersion())")
+        let versionLabel = NSTextField(labelWithString: "\(ProductIdentity.name) \(displayVersion())")
         configureLabel(versionLabel, size: 12, weight: .regular, color: .tertiaryLabelColor)
 
         let spacer = NSView()

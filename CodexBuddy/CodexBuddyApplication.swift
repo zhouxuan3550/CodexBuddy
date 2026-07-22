@@ -3,7 +3,7 @@ import Combine
 
 @main
 @MainActor
-final class CodexUsageApplication: NSObject, NSApplicationDelegate {
+final class CodexBuddyApplication: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarCoordinator?
     private var usageModel: UsageViewModel?
     private var settings: AppSettings?
@@ -18,7 +18,7 @@ final class CodexUsageApplication: NSObject, NSApplicationDelegate {
 
     static func main() {
         let application = NSApplication.shared
-        let delegate = CodexUsageApplication()
+        let delegate = CodexBuddyApplication()
         application.delegate = delegate
         application.setActivationPolicy(.accessory)
         application.run()
@@ -34,7 +34,7 @@ final class CodexUsageApplication: NSObject, NSApplicationDelegate {
             reason: "Keep Codex usage monitoring responsive"
         )
 
-        let preview = ProcessInfo.processInfo.environment["CODEX_USAGE_PREVIEW"] == "1"
+        let preview = ProcessInfo.processInfo.environment["CODEX_BUDDY_PREVIEW"] == "1"
         let source: UsageReadingSource = preview ? PreviewUsageReader() : LocalUsageReader()
         let model = UsageViewModel(source: source)
         let preferences = AppSettings()

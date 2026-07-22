@@ -29,5 +29,5 @@ jobs:
             build/*.dmg \
             build/*.zip \
             build/*.sha256 \
-            --title "CodexUsage $GITHUB_REF_NAME" \
+            --title "CodexBuddy $GITHUB_REF_NAME" \
             --generate-notes

@@ -4,6 +4,7 @@ import Foundation
 struct CoreTests {
     @MainActor
     static func main() async {
+        testCodexBuddyIdentity()
         testDomainFormattingAndThresholds()
         testSettingsMigrationAndDefaults()
         await testSessionFixture()
@@ -15,6 +16,12 @@ struct CoreTests {
         testDepletionEstimate()
         testSessionMonitorDetectsAppend()
         print("Core tests passed")
+    }
+
+    private static func testCodexBuddyIdentity() {
+        expect(ProductIdentity.name == "CodexBuddy", "product name is CodexBuddy")
+        expect(ProductIdentity.repository == "zhouxuan3550/CodexBuddy", "updates use the CodexBuddy repository")
+        expect(ProductIdentity.bundleIdentifier == "com.zhouxuan3550.codexbuddy", "bundle identifier uses CodexBuddy")
     }
 
     private static func testDomainFormattingAndThresholds() {
@@ -40,7 +47,7 @@ struct CoreTests {
         expect(QuotaLevel.forRemaining(80) == .standard, "80 percent remains standard")
         expect(QuotaLevel.forRemaining(81) == .healthy, "above 80 percent is healthy")
         expect(reading.source.displayName(language: .english) == "Live event", "source name is localized")
-        expect(UpdateChecker.defaultRepository == "zhouxuan3550/CodexUsage", "updates use the public repository")
+        expect(UpdateChecker.defaultRepository == ProductIdentity.repository, "updates use the public repository")
         expect(
             reading.isOutdated(at: Date(timeIntervalSince1970: 1_801), maximumAge: 1_800),
             "old readings without reset dates are marked outdated"
@@ -53,7 +60,7 @@ struct CoreTests {
 
     @MainActor
     private static func testSettingsMigrationAndDefaults() {
-        let suite = "CodexUsageV07Settings-\(UUID().uuidString)"
+        let suite = "CodexBuddyV07Settings-\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suite) else {
             expect(false, "settings suite is available")
             return
@@ -61,7 +68,7 @@ struct CoreTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         expect(AppSettings(defaults: defaults).menuBarMode == .allWindows, "display defaults to both windows")
         defaults.set("worst", forKey: "menuBarMode")
-        expect(AppSettings(defaults: defaults).menuBarMode == .tightest, "v0.6 compact setting migrates")
+        expect(AppSettings(defaults: defaults).menuBarMode == .tightest, "legacy compact setting migrates")
     }
 
     private static func testSessionFixture() async {
@@ -283,7 +290,7 @@ struct CoreTests {
 
     private static func temporaryDirectory(_ label: String) -> URL {
         FileManager.default.temporaryDirectory
-            .appendingPathComponent("CodexUsageV07\(label)-\(UUID().uuidString)")
+            .appendingPathComponent("CodexBuddyV07\(label)-\(UUID().uuidString)")
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ name: String) {

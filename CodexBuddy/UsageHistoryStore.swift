@@ -23,7 +23,7 @@ final class UsageHistoryStore {
     init(directory: URL? = nil, now: @escaping () -> Date = Date.init) {
         let dir = directory
             ?? FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".codex-usage-history", isDirectory: true)
+                .appendingPathComponent(".codex-buddy-history", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         fileURL = dir.appendingPathComponent("history.json")
         self.now = now

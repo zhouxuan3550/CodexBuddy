@@ -94,7 +94,7 @@ final class AutoUpdater: ObservableObject {
 
         let expectedLength = response.expectedContentLength
         let tempDir = FileManager.default.temporaryDirectory
-        let zipURL = tempDir.appendingPathComponent("CodexUsage-update-\(UUID().uuidString).zip")
+        let zipURL = tempDir.appendingPathComponent("\(ProductIdentity.name)-update-\(UUID().uuidString).zip")
 
         var downloaded: Int64 = 0
         var buffer = Data()
@@ -129,7 +129,7 @@ final class AutoUpdater: ObservableObject {
 
     private func installUpdate(zipURL: URL) throws {
         let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appendingPathComponent("CodexUsage-install-\(UUID().uuidString)")
+        let tempDir = fm.temporaryDirectory.appendingPathComponent("\(ProductIdentity.name)-install-\(UUID().uuidString)")
         try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         // Unzip
@@ -151,7 +151,7 @@ final class AutoUpdater: ObservableObject {
         // Current app location
         let currentAppURL = URL(fileURLWithPath: Bundle.main.bundlePath)
         let parentDir = currentAppURL.deletingLastPathComponent()
-        let backupURL = parentDir.appendingPathComponent(".CodexUsage-backup.app")
+        let backupURL = parentDir.appendingPathComponent(".\(ProductIdentity.name)-backup.app")
 
         // Replace: move current to backup, move new into place
         try? fm.removeItem(at: backupURL)

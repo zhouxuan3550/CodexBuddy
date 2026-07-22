@@ -17,7 +17,7 @@ final class UsageActivityStore: ObservableObject {
     init(directory: URL? = nil) {
         let dir = directory
             ?? FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".codex-usage-history", isDirectory: true)
+                .appendingPathComponent(".codex-buddy-history", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         cacheURL = dir.appendingPathComponent("activity.json")
         sessionsRoot = FileManager.default.homeDirectoryForCurrentUser

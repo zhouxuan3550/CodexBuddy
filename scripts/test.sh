@@ -12,6 +12,7 @@ fi
 mkdir -p "$project_root/build"
 test_runner="$project_root/build/CoreTests"
 core_sources=(
+  ProductIdentity.swift
   Localization.swift
   AppSettings.swift
   UpdateChecker.swift
@@ -26,7 +27,7 @@ core_sources=(
 )
 compiler_inputs=()
 for source_name in "${core_sources[@]}"; do
-  compiler_inputs+=("$project_root/CodexUsageBar/$source_name")
+  compiler_inputs+=("$project_root/CodexBuddy/$source_name")
 done
 
 xcrun --sdk macosx swiftc \

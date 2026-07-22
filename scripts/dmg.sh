@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/version.sh"
-APP_NAME="${APP_NAME:-CodexUsage}"
+APP_NAME="${APP_NAME:-CodexBuddy}"
 VERSION="${VERSION:-$APP_VERSION}"
 BUILD_DIR="$ROOT_DIR/build"
 APP_PATH="$("$ROOT_DIR/scripts/build.sh")"

@@ -243,7 +243,7 @@ extension MenuBarCoordinator {
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
         NSApplication.shared.activate(ignoringOtherApps: true)
         NSApplication.shared.orderFrontStandardAboutPanel(options: [
-            .applicationName: "CodexUsage",
+            .applicationName: ProductIdentity.name,
             .applicationVersion: version,
             .version: "Build \(build)"
         ])

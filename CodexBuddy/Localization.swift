@@ -46,8 +46,6 @@ enum L10nKey {
     case justNow
     case minutesAgo
     case about
-    case weeklyCodexUsage
-    case shortCodexUsage
     case used
     case resetExpired
     case otherWindow
@@ -119,8 +117,6 @@ enum L10n {
         case .justNow: return "刚刚更新"
         case .minutesAgo: return "分钟前"
         case .about: return "关于"
-        case .weeklyCodexUsage: return "本周 Codex 用量"
-        case .shortCodexUsage: return "短时 Codex 用量"
         case .used: return "已使用"
         case .resetExpired: return "等待新周期"
         case .otherWindow: return "其他窗口"
@@ -183,8 +179,6 @@ enum L10n {
         case .justNow: return "Updated just now"
         case .minutesAgo: return "min ago"
         case .about: return "About"
-        case .weeklyCodexUsage: return "Weekly Codex usage"
-        case .shortCodexUsage: return "Short-window Codex usage"
         case .used: return "used"
         case .resetExpired: return "Awaiting new period"
         case .otherWindow: return "Other window"

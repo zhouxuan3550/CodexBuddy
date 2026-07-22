@@ -60,7 +60,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         guard let button = statusItem.button else { return }
         button.image = nil
         button.imagePosition = .noImage
-        button.toolTip = "CodexUsage"
+        button.toolTip = ProductIdentity.name
         updateStatusButton()
     }
 
@@ -119,7 +119,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         if let reading = model.reading {
             button.toolTip = "\(reading.completeStatusText) · \(model.updatedText(language: language))"
         } else {
-            button.toolTip = "CodexUsage"
+            button.toolTip = ProductIdentity.name
         }
     }
 
