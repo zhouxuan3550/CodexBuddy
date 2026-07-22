@@ -4,7 +4,9 @@
 
 > 非官方第三方项目，与 OpenAI 不存在隶属、赞助或背书关系。Codex 名称及相关商标归其权利人所有。
 
-## v0.6.0 体验版
+## v0.7.0 自主核心版
+
+v0.7 已将最初继承的用量模型、数据读取、状态管理、应用入口、菜单协调器、预览数据源，以及构建/安装/打包脚本全部替换为 CodexUsage 自有实现。新的核心链路是 `LocalUsageReader → UsageViewModel → MenuBarCoordinator`。
 
 - 菜单栏常驻显示剩余用量，例如 `H 89% W 32%`
 - 用量低于 20% 时显示红色，高于 80% 时显示绿色，其余使用系统文字颜色
@@ -91,8 +93,8 @@ INSTALL_DIR=/Applications ./scripts/install.sh
 默认生成：
 
 ```text
-build/CodexUsage-v0.6.0.zip
-build/CodexUsage-v0.6.0.zip.sha256
+build/CodexUsage-v0.7.0.zip
+build/CodexUsage-v0.7.0.zip.sha256
 ```
 
 本地发布包使用 ad-hoc 签名。面向公众分发时，建议替换为 Apple Developer ID 签名并完成 notarization。
@@ -102,8 +104,8 @@ build/CodexUsage-v0.6.0.zip.sha256
 ```bash
 APP_NAME=MyUsageBar \
 BUNDLE_ID=com.example.myusagebar \
-VERSION=0.6.0 \
-BUILD_NUMBER=12 \
+VERSION=0.7.0 \
+BUILD_NUMBER=13 \
 ICON_SOURCE=/absolute/path/to/icon.png \
 ./scripts/package.sh
 ```
@@ -115,10 +117,10 @@ ICON_SOURCE=/absolute/path/to/icon.png \
 仓库包含 `.github/workflows/release.yml`。推送版本标签后会构建 Universal ZIP、生成 SHA-256 校验文件并创建 GitHub Release：
 
 ```bash
-git tag v0.6.0
-git push origin v0.6.0
+git tag v0.7.0
+git push origin v0.7.0
 ```
 
 ## 来源与授权
 
-本项目基于 [qiyasxsx/CodexUsageBar](https://github.com/qiyasxsx/CodexUsageBar) 二次开发，并已获得上游作者对本版本公开分发的授权。仓库目前未声明面向第三方再分发的开源许可证；如需复制、修改或再发布，请先取得相应授权。
+本项目最初基于 [qiyasxsx/CodexUsageBar](https://github.com/qiyasxsx/CodexUsageBar) 二次开发，并已获得上游作者对本版本公开分发的授权。v0.7 已独立重写最初继承的核心源文件和发布脚本；仓库历史仍如实保留项目来源。仓库目前未声明面向第三方再分发的开源许可证；如需复制、修改或再发布，请先取得相应授权。

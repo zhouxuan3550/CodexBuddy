@@ -20,13 +20,13 @@ final class UsageSummaryMenuView: NSView {
     private let sourceLabel = NSTextField(labelWithString: "")
 
     init(
-        snapshot: UsageSnapshot?,
+        reading: UsageReading?,
         isLoading: Bool,
         detailMessage: String,
         confidenceStatus: String?,
         language: AppLanguage
     ) {
-        let hasMultipleWindows = snapshot?.shortWindow != nil && snapshot?.weekWindow != nil
+        let hasMultipleWindows = reading?.shortWindow != nil && reading?.weekWindow != nil
         super.init(frame: NSRect(
             x: 0,
             y: 0,
@@ -35,7 +35,7 @@ final class UsageSummaryMenuView: NSView {
         ))
         buildInterface()
         update(
-            snapshot: snapshot,
+            reading: reading,
             isLoading: isLoading,
             detailMessage: detailMessage,
             confidenceStatus: confidenceStatus,
@@ -48,14 +48,14 @@ final class UsageSummaryMenuView: NSView {
     }
 
     func update(
-        snapshot: UsageSnapshot?,
+        reading: UsageReading?,
         isLoading: Bool,
         detailMessage: String,
         confidenceStatus: String?,
         language: AppLanguage,
         now: Date = Date()
     ) {
-        guard let snapshot, let window = snapshot.featuredWindow else {
+        guard let reading, let window = reading.tightestWindow else {
             sectionTitleLabel.stringValue = L10n.text(.usage, language: language)
             remainingLabel.stringValue = "--%"
             remainingLabel.textColor = .labelColor
@@ -90,20 +90,20 @@ final class UsageSummaryMenuView: NSView {
         adviceLabel.stringValue = adviceText(percent: window.remainingPercent, language: language)
         updateTimelineColor(semanticColor)
 
-        if let otherWindow = otherWindow(in: snapshot, featured: window) {
-            secondaryWindowLabel.stringValue = "\(L10n.text(.otherWindow, language: language)): \(snapshot.line(for: otherWindow, language: language))"
+        if let otherWindow = otherWindow(in: reading, featured: window) {
+            secondaryWindowLabel.stringValue = "\(L10n.text(.otherWindow, language: language)): \(reading.detailLine(for: otherWindow, language: language))"
             secondaryWindowLabel.isHidden = false
         } else {
             secondaryWindowLabel.isHidden = true
         }
 
-        let sourceColor: NSColor = snapshot.isStale(at: now) ? .systemOrange : .systemGreen
+        let sourceColor: NSColor = reading.isOutdated(at: now) ? .systemOrange : .systemGreen
         updateSource(
             text: isLoading
-                ? "\(confidenceStatus ?? snapshot.source.localizedName(language: language)) · \(L10n.text(.refreshing, language: language))"
-                : (confidenceStatus ?? snapshot.source.localizedName(language: language)),
+                ? "\(confidenceStatus ?? reading.source.displayName(language: language)) · \(L10n.text(.refreshing, language: language))"
+                : (confidenceStatus ?? reading.source.displayName(language: language)),
             color: sourceColor,
-            symbolName: snapshot.isStale(at: now) ? "exclamationmark.circle.fill" : "circle.fill"
+            symbolName: reading.isOutdated(at: now) ? "exclamationmark.circle.fill" : "circle.fill"
         )
 
         setAccessibilityLabel(
@@ -273,10 +273,10 @@ final class UsageSummaryMenuView: NSView {
     }
 
     private func color(for percent: Int) -> NSColor {
-        switch UsageColorLevel.classify(percent: percent) {
-        case .low: return .systemRed
-        case .normal: return .labelColor
-        case .high: return .systemGreen
+        switch QuotaLevel.forRemaining(percent) {
+        case .critical: return .systemRed
+        case .standard: return .labelColor
+        case .healthy: return .systemGreen
         }
     }
 
@@ -287,8 +287,8 @@ final class UsageSummaryMenuView: NSView {
         endDot.contentTintColor = .tertiaryLabelColor
     }
 
-    private func otherWindow(in snapshot: UsageSnapshot, featured: UsageWindow) -> UsageWindow? {
-        [snapshot.shortWindow, snapshot.weekWindow]
+    private func otherWindow(in reading: UsageReading, featured: QuotaWindow) -> QuotaWindow? {
+        [reading.shortWindow, reading.weekWindow]
             .compactMap { $0 }
             .first { $0 != featured }
     }
@@ -301,7 +301,7 @@ final class UsageSummaryMenuView: NSView {
         return language.resolved == .simplifiedChinese ? "现在 · \(date)" : "Now · \(date)"
     }
 
-    private func resetDateText(for window: UsageWindow, language: AppLanguage) -> String {
+    private func resetDateText(for window: QuotaWindow, language: AppLanguage) -> String {
         guard let resetAt = window.resetAt else { return "--" }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US")
@@ -310,7 +310,7 @@ final class UsageSummaryMenuView: NSView {
         return language.resolved == .simplifiedChinese ? "恢复 · \(date)" : "Reset · \(date)"
     }
 
-    private func resetRelativeText(for window: UsageWindow, language: AppLanguage, now: Date) -> String {
+    private func resetRelativeText(for window: QuotaWindow, language: AppLanguage, now: Date) -> String {
         guard let resetAt = window.resetAt else { return "--" }
         let seconds = resetAt.timeIntervalSince(now)
         guard seconds > 0 else { return L10n.text(.resetExpired, language: language) }
@@ -324,16 +324,16 @@ final class UsageSummaryMenuView: NSView {
     }
 
     private func adviceText(percent: Int, language: AppLanguage) -> String {
-        switch UsageColorLevel.classify(percent: percent) {
-        case .low:
+        switch QuotaLevel.forRemaining(percent) {
+        case .critical:
             return language.resolved == .simplifiedChinese
                 ? "低于 20%，建议控制使用"
                 : "Below 20% — consider limiting usage"
-        case .normal:
+        case .standard:
             return language.resolved == .simplifiedChinese
                 ? "当前用量正常"
                 : "Usage is within the normal range"
-        case .high:
+        case .healthy:
             return language.resolved == .simplifiedChinese
                 ? "用量充足，可以放心使用"
                 : "Plenty of usage remains"

@@ -31,7 +31,7 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(showWeekWindow, forKey: Keys.showWeekWindow) }
     }
 
-    @Published var menuBarMode: MenuBarMode {
+    @Published var menuBarMode: StatusDisplayMode {
         didSet { defaults.set(menuBarMode.rawValue, forKey: Keys.menuBarMode) }
     }
 
@@ -56,8 +56,9 @@ final class AppSettings: ObservableObject {
 
         showShortWindow = defaults.object(forKey: Keys.showShortWindow) as? Bool ?? true
         showWeekWindow = defaults.object(forKey: Keys.showWeekWindow) as? Bool ?? true
-        menuBarMode = defaults.string(forKey: Keys.menuBarMode)
-            .flatMap(MenuBarMode.init(rawValue:)) ?? .dual
+        let savedMode = defaults.string(forKey: Keys.menuBarMode)
+        menuBarMode = savedMode.flatMap(StatusDisplayMode.init(rawValue:))
+            ?? (savedMode == "worst" ? .tightest : .allWindows)
 
         let status = SMAppService.mainApp.status
         launchAtLoginEnabled = status == .enabled || status == .requiresApproval

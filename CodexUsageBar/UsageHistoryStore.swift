@@ -30,13 +30,13 @@ final class UsageHistoryStore {
         load()
     }
 
-    func record(snapshot: UsageSnapshot) {
+    func record(reading: UsageReading) {
         let record = Record(
-            timestamp: snapshot.updatedAt,
-            shortRemaining: snapshot.shortWindow?.remainingPercent,
-            weekRemaining: snapshot.weekWindow?.remainingPercent,
-            planType: snapshot.planType,
-            creditsBalance: snapshot.credits?.displayBalance
+            timestamp: reading.updatedAt,
+            shortRemaining: reading.shortWindow?.remainingPercent,
+            weekRemaining: reading.weekWindow?.remainingPercent,
+            planType: reading.planName,
+            creditsBalance: reading.credits?.finiteBalance
         )
         if let last = records.last,
            last.timestamp == record.timestamp,

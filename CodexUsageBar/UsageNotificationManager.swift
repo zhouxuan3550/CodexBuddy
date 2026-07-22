@@ -17,14 +17,14 @@ final class UsageNotificationManager {
     }
 
     func evaluate(
-        snapshot: UsageSnapshot,
+        reading: UsageReading,
         threshold: Int,
         language: AppLanguage,
         enabled: Bool
     ) {
         guard enabled else { return }
 
-        if let shortWindow = snapshot.shortWindow {
+        if let shortWindow = reading.shortWindow {
             scheduleIfNeeded(
                 window: shortWindow,
                 kind: "short",
@@ -33,7 +33,7 @@ final class UsageNotificationManager {
                 language: language
             )
         }
-        if let weekWindow = snapshot.weekWindow {
+        if let weekWindow = reading.weekWindow {
             scheduleIfNeeded(
                 window: weekWindow,
                 kind: "week",
@@ -45,19 +45,19 @@ final class UsageNotificationManager {
     }
 
     /// Sends a notification when a window's reset is within 5 minutes.
-    func evaluateResetCountdown(snapshot: UsageSnapshot, language: AppLanguage, enabled: Bool) {
+    func evaluateResetCountdown(reading: UsageReading, language: AppLanguage, enabled: Bool) {
         guard enabled else { return }
         let now = Date()
 
-        if let shortWindow = snapshot.shortWindow {
+        if let shortWindow = reading.shortWindow {
             scheduleResetCountdown(window: shortWindow, kind: "short", language: language, now: now)
         }
-        if let weekWindow = snapshot.weekWindow {
+        if let weekWindow = reading.weekWindow {
             scheduleResetCountdown(window: weekWindow, kind: "week", language: language, now: now)
         }
     }
 
-    private func scheduleResetCountdown(window: UsageWindow, kind: String, language: AppLanguage, now: Date) {
+    private func scheduleResetCountdown(window: QuotaWindow, kind: String, language: AppLanguage, now: Date) {
         guard let resetAt = window.resetAt else { return }
         let secondsUntilReset = resetAt.timeIntervalSince(now)
         // Only fire when within 5 minutes (300s) and not already past
@@ -89,7 +89,7 @@ final class UsageNotificationManager {
     }
 
     private func scheduleIfNeeded(
-        window: UsageWindow,
+        window: QuotaWindow,
         kind: String,
         title: String,
         threshold: Int,

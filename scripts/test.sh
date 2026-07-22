@@ -1,30 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TEST_BINARY="$ROOT_DIR/build/ModelTests"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$project_root/scripts/version.sh"
 
-source "$ROOT_DIR/scripts/version.sh"
-[[ "$APP_VERSION" == "0.6.0" ]]
-[[ "$APP_BUILD_NUMBER" == "12" ]]
+if [[ "$APP_VERSION" != "0.7.0" || "$APP_BUILD_NUMBER" != "13" ]]; then
+  echo "Expected v0.7.0 build 13, found v$APP_VERSION build $APP_BUILD_NUMBER" >&2
+  exit 1
+fi
+
+mkdir -p "$project_root/build"
+test_runner="$project_root/build/CoreTests"
+core_sources=(
+  Localization.swift
+  AppSettings.swift
+  UpdateChecker.swift
+  UsageDomain.swift
+  UsageReadingSource.swift
+  LocalUsageReader.swift
+  UsageViewModel.swift
+  UsageHistoryStore.swift
+  DepletionEstimator.swift
+  UsageFileMonitor.swift
+  SingleInstanceCoordinator.swift
+)
+compiler_inputs=()
+for source_name in "${core_sources[@]}"; do
+  compiler_inputs+=("$project_root/CodexUsageBar/$source_name")
+done
 
 xcrun --sdk macosx swiftc \
   -framework AppKit \
   -framework Combine \
   -framework CoreServices \
   -framework ServiceManagement \
-  "$ROOT_DIR/CodexUsageBar/Localization.swift" \
-  "$ROOT_DIR/CodexUsageBar/AppSettings.swift" \
-  "$ROOT_DIR/CodexUsageBar/UpdateChecker.swift" \
-  "$ROOT_DIR/CodexUsageBar/UsageProvider.swift" \
-  "$ROOT_DIR/CodexUsageBar/UsageSnapshot.swift" \
-  "$ROOT_DIR/CodexUsageBar/UsageStore.swift" \
-  "$ROOT_DIR/CodexUsageBar/UsageHistoryStore.swift" \
-  "$ROOT_DIR/CodexUsageBar/DepletionEstimator.swift" \
-  "$ROOT_DIR/CodexUsageBar/CodexUsageProvider.swift" \
-  "$ROOT_DIR/CodexUsageBar/UsageFileMonitor.swift" \
-  "$ROOT_DIR/CodexUsageBar/SingleInstanceCoordinator.swift" \
-  "$ROOT_DIR/Tests/ModelTests.swift" \
-  -o "$TEST_BINARY"
+  "${compiler_inputs[@]}" \
+  "$project_root/Tests/CoreTests.swift" \
+  -o "$test_runner"
 
-"$TEST_BINARY"
+"$test_runner"

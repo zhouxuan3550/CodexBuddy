@@ -5,13 +5,13 @@ import Foundation
 @MainActor
 enum DiagnosticExporter {
     static func export(
-        snapshot: UsageSnapshot?,
+        reading: UsageReading?,
         settings: AppSettings,
         historyStore: UsageHistoryStore,
         language: AppLanguage
     ) {
         let report = generateReport(
-            snapshot: snapshot,
+            reading: reading,
             settings: settings,
             historyStore: historyStore,
             language: language
@@ -28,7 +28,7 @@ enum DiagnosticExporter {
     }
 
     private static func generateReport(
-        snapshot: UsageSnapshot?,
+        reading: UsageReading?,
         settings: AppSettings,
         historyStore: UsageHistoryStore,
         language: AppLanguage
@@ -50,14 +50,14 @@ enum DiagnosticExporter {
 
         // Current snapshot (redacted)
         lines.append("[Current Usage]")
-        if let snapshot {
-            lines.append("Short window: \(snapshot.shortWindow.map { "\($0.remainingPercent)% remaining, resets \($0.resetAt.map { "\($0)" } ?? "unknown")" } ?? "N/A")")
-            lines.append("Week window: \(snapshot.weekWindow.map { "\($0.remainingPercent)% remaining, resets \($0.resetAt.map { "\($0)" } ?? "unknown")" } ?? "N/A")")
-            lines.append("Plan: \(snapshot.planType ?? "unknown")")
-            lines.append("Credits: \(snapshot.credits.map { $0.unlimited ? "unlimited" : ($0.balance ?? "N/A") } ?? "N/A")")
-            lines.append("Source: \(snapshot.source)")
-            lines.append("Updated: \(snapshot.updatedAt)")
-            lines.append("Stale: \(snapshot.isStale())")
+        if let reading {
+            lines.append("Short window: \(reading.shortWindow.map { "\($0.remainingPercent)% remaining, resets \($0.resetAt.map { "\($0)" } ?? "unknown")" } ?? "N/A")")
+            lines.append("Week window: \(reading.weekWindow.map { "\($0.remainingPercent)% remaining, resets \($0.resetAt.map { "\($0)" } ?? "unknown")" } ?? "N/A")")
+            lines.append("Plan: \(reading.planName ?? "unknown")")
+            lines.append("Credits: \(reading.credits.map { $0.isUnlimited ? "unlimited" : ($0.balance ?? "N/A") } ?? "N/A")")
+            lines.append("Source: \(reading.source)")
+            lines.append("Updated: \(reading.updatedAt)")
+            lines.append("Stale: \(reading.isOutdated())")
         } else {
             lines.append("No data available")
         }

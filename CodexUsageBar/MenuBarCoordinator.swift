@@ -2,9 +2,9 @@ import AppKit
 import Combine
 
 @MainActor
-final class StatusBarController: NSObject, NSMenuDelegate {
+final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let store: UsageStore
+    private let model: UsageViewModel
     private let settings: AppSettings
     private let historyStore: UsageHistoryStore
     private let updateChecker: UpdateChecker
@@ -18,8 +18,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private weak var heatmapView: UsageHeatmapView?
     private var updateWindow: UpdateWindowController?
 
-    init(store: UsageStore, settings: AppSettings, historyStore: UsageHistoryStore, activityStore: UsageActivityStore, updateChecker: UpdateChecker, autoUpdater: AutoUpdater) {
-        self.store = store
+    init(model: UsageViewModel, settings: AppSettings, historyStore: UsageHistoryStore, activityStore: UsageActivityStore, updateChecker: UpdateChecker, autoUpdater: AutoUpdater) {
+        self.model = model
         self.settings = settings
         self.historyStore = historyStore
         self.activityStore = activityStore
@@ -37,16 +37,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         statusItem.length = NSStatusItem.variableLength
         updateStatusButton()
         summaryView?.update(
-            snapshot: store.snapshot,
-            isLoading: store.isLoading,
-            detailMessage: store.detailMessage(language: language),
-            confidenceStatus: store.confidenceStatusText(language: language),
+            reading: model.reading,
+            isLoading: model.isReloading,
+            detailMessage: model.detailText(language: language),
+            confidenceStatus: model.confidenceText(language: language),
             language: language
         )
-        refreshMenuItem?.title = store.isLoading
+        refreshMenuItem?.title = model.isReloading
             ? L10n.text(.refreshing, language: language)
             : L10n.text(.refresh, language: language)
-        refreshMenuItem?.isEnabled = !store.isLoading
+        refreshMenuItem?.isEnabled = !model.isReloading
         if isMenuOpen {
             needsMenuRebuild = true
         } else {
@@ -68,17 +68,17 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         guard let button = statusItem.button else { return }
 
         let segments: [(text: String, percent: Int?)]
-        if let snapshot = store.snapshot {
-            let availableSegments = snapshot.menuBarSegments(
+        if let reading = model.reading {
+            let availableSegments = reading.menuBarSegments(
                 mode: settings.menuBarMode,
                 showShortWindow: settings.showShortWindow,
                 showWeekWindow: settings.showWeekWindow
             )
             segments = availableSegments.isEmpty
-                ? [(settings.menuBarMode == .worst ? "--%" : "H --% W --%", nil)]
+                ? [(settings.menuBarMode == .tightest ? "--%" : "H --% W --%", nil)]
                 : availableSegments.map { ($0.text, $0.percent) }
         } else {
-            segments = [(settings.menuBarMode == .worst ? "--%" : "H --% W --%", nil)]
+            segments = [(settings.menuBarMode == .tightest ? "--%" : "H --% W --%", nil)]
         }
 
         let title = NSMutableAttributedString(string: "")
@@ -91,10 +91,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
             let color: NSColor
             if let percent = segment.percent {
-                switch UsageColorLevel.classify(percent: percent) {
-                case .low: color = .systemRed
-                case .normal: color = .labelColor
-                case .high: color = .systemGreen
+                switch QuotaLevel.forRemaining(percent) {
+                case .critical: color = .systemRed
+                case .standard: color = .labelColor
+                case .healthy: color = .systemGreen
                 }
             } else {
                 color = .labelColor
@@ -106,7 +106,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             ))
         }
 
-        if store.snapshot?.isStale() == true {
+        if model.reading?.isOutdated() == true {
             title.append(NSAttributedString(
                 string: " ⚠︎",
                 attributes: [.font: font, .foregroundColor: NSColor.systemOrange]
@@ -115,9 +115,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         button.title = ""
         button.attributedTitle = title
-        button.setAccessibilityLabel(store.statusText)
-        if let snapshot = store.snapshot {
-            button.toolTip = "\(snapshot.menuBarText) · \(store.updatedAtText(language: language))"
+        button.setAccessibilityLabel(model.statusText)
+        if let reading = model.reading {
+            button.toolTip = "\(reading.completeStatusText) · \(model.updatedText(language: language))"
         } else {
             button.toolTip = "CodexUsage"
         }
@@ -138,10 +138,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.delegate = self
 
         let summary = UsageSummaryMenuView(
-            snapshot: store.snapshot,
-            isLoading: store.isLoading,
-            detailMessage: store.detailMessage(language: language),
-            confidenceStatus: store.confidenceStatusText(language: language),
+            reading: model.reading,
+            isLoading: model.isReloading,
+            detailMessage: model.detailText(language: language),
+            confidenceStatus: model.confidenceText(language: language),
             language: language
         )
         let summaryItem = NSMenuItem()
@@ -150,9 +150,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         summaryView = summary
 
         // Plan & Credits info row
-        if let snapshot = store.snapshot, snapshot.planType != nil || snapshot.credits != nil {
+        if let reading = model.reading, reading.planName != nil || reading.credits != nil {
             let infoItem = NSMenuItem()
-            infoItem.view = makePlanCreditsView(snapshot: snapshot)
+            infoItem.view = makePlanCreditsView(reading: reading)
             menu.addItem(infoItem)
         }
 
@@ -197,19 +197,19 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
 
         let refreshItem = NSMenuItem(
-            title: store.isLoading ? L10n.text(.refreshing, language: language) : L10n.text(.refresh, language: language),
+            title: model.isReloading ? L10n.text(.refreshing, language: language) : L10n.text(.refresh, language: language),
             action: #selector(refreshUsage),
             keyEquivalent: "r"
         )
         refreshItem.target = self
-        refreshItem.isEnabled = !store.isLoading
+        refreshItem.isEnabled = !model.isReloading
         refreshItem.image = menuImage(named: "arrow.triangle.2.circlepath")
         menu.addItem(refreshItem)
         refreshMenuItem = refreshItem
 
         let openItem = NSMenuItem(
             title: L10n.text(.openOfficialUsage, language: language),
-            action: #selector(openOfficialUsage),
+            action: #selector(openOfficialUsagePage),
             keyEquivalent: "o"
         )
         openItem.target = self
@@ -378,11 +378,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let menu = NSMenu()
 
         let modeMenu = NSMenu()
-        for mode in MenuBarMode.allCases {
-            let titleKey: L10nKey = mode == .dual ? .dualWindowMode : .worstWindowMode
+        for mode in StatusDisplayMode.allCases {
+            let titleKey: L10nKey = mode == .allWindows ? .dualWindowMode : .worstWindowMode
             let item = NSMenuItem(
                 title: L10n.text(titleKey, language: language),
-                action: #selector(selectMenuBarMode(_:)),
+                action: #selector(selectStatusDisplayMode(_:)),
                 keyEquivalent: ""
             )
             item.target = self
@@ -403,7 +403,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         shortItem.target = self
         shortItem.state = settings.showShortWindow ? .on : .off
-        shortItem.isEnabled = settings.menuBarMode == .dual
+        shortItem.isEnabled = settings.menuBarMode == .allWindows
         menu.addItem(shortItem)
 
         let weekItem = NSMenuItem(
@@ -413,7 +413,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         weekItem.target = self
         weekItem.state = settings.showWeekWindow ? .on : .off
-        weekItem.isEnabled = settings.menuBarMode == .dual
+        weekItem.isEnabled = settings.menuBarMode == .allWindows
         menu.addItem(weekItem)
 
         return menu
@@ -435,7 +435,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         isMenuOpen = true
         // Always fetch fresh data when the user opens the menu, so the value
         // they see is current even if background refreshes were delayed.
-        Task { await store.refresh() }
+        Task { await model.reload() }
         activityStore.rescan()
     }
 
@@ -453,11 +453,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func refreshUsage() {
-        Task { await store.refresh() }
+        Task { await model.reload() }
     }
 
-    @objc private func openOfficialUsage() {
-        store.openOfficialUsage()
+    @objc private func openOfficialUsagePage() {
+        model.openOfficialUsagePage()
     }
 
     @objc private func toggleLaunchAtLogin() {
@@ -551,15 +551,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func makePlanCreditsView(snapshot: UsageSnapshot) -> NSView {
+    private func makePlanCreditsView(reading: UsageReading) -> NSView {
         var parts: [String] = []
-        if let plan = snapshot.planType {
+        if let plan = reading.planName {
             parts.append("\(L10n.text(.planType, language: language)): \(plan.capitalized)")
         }
-        if let credits = snapshot.credits {
-            if credits.unlimited {
+        if let credits = reading.credits {
+            if credits.isUnlimited {
                 parts.append("\(L10n.text(.creditsBalance, language: language)): ∞")
-            } else if let balance = credits.displayBalance {
+            } else if let balance = credits.finiteBalance {
                 parts.append("\(L10n.text(.creditsBalance, language: language)): \(balance)")
             }
         }
@@ -618,7 +618,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     private func depletionEstimateText() -> String? {
-        guard let snapshot = store.snapshot, let window = snapshot.featuredWindow else { return nil }
+        guard let reading = model.reading, let window = reading.tightestWindow else { return nil }
         let windowType: DepletionEstimator.WindowType = window.minutes >= 10_080 ? .week : .short
         let records = historyStore.records24h()
         let estimate = DepletionEstimator.estimate(
@@ -655,7 +655,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func exportDiagnostic() {
         DiagnosticExporter.export(
-            snapshot: store.snapshot,
+            reading: model.reading,
             settings: settings,
             historyStore: historyStore,
             language: language
@@ -693,10 +693,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         settings.showShortWindow.toggle()
     }
 
-    @objc private func selectMenuBarMode(_ sender: NSMenuItem) {
+    @objc private func selectStatusDisplayMode(_ sender: NSMenuItem) {
         guard
             let rawValue = sender.representedObject as? String,
-            let mode = MenuBarMode(rawValue: rawValue)
+            let mode = StatusDisplayMode(rawValue: rawValue)
         else { return }
         settings.menuBarMode = mode
     }
