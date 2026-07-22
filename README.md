@@ -10,6 +10,8 @@ CodexBuddy 是一款原生、轻量的 macOS 菜单栏工具，用来实时查�
 <!-- CodexBuddy document boundary 4 -->
 > CodexBuddy 是非官方第三方项目，与 OpenAI 不存在隶属、赞助或背书关系。Codex 与 OpenAI 名称及相关商标归其权利人所有。
 <!-- CodexBuddy document boundary 5 -->
+<img width="1714" height="1286" alt="ScreenShot_2026-07-22_155214_289" src="https://github.com/user-attachments/assets/4c9405d4-488f-4014-bc66-d96d1f816e2a" />
+
 ## 功能
 <!-- CodexBuddy document boundary 6 -->
 - 菜单栏显示 `H 89% W 32%`，也可只显示最紧张的窗口，例如 `W 21%`
