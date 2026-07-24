@@ -6,6 +6,19 @@ final class UpdateChecker {
     nonisolated static let defaultRepoOwner = ProductIdentity.repositoryOwner
     nonisolated static let defaultRepoName = ProductIdentity.repositoryName
     nonisolated static var defaultRepository: String { "\(defaultRepoOwner)/\(defaultRepoName)" }
+    #if arch(arm64)
+    nonisolated static let currentArchitecture = "arm64"
+    #elseif arch(x86_64)
+    nonisolated static let currentArchitecture = "x86_64"
+    #endif
+
+    nonisolated static func preferredAssetName(
+        in names: [String],
+        architecture: String = currentArchitecture,
+        suffix: String
+    ) -> String? {
+        names.first { $0.hasSuffix("-\(architecture)\(suffix)") }
+    }
 
     struct ReleaseInfo {
         let tagName: String
@@ -82,8 +95,11 @@ final class UpdateChecker {
 
             // Parse asset URLs
             if let assets = json["assets"] as? [[String: Any]] {
-                let zipAsset = assets.first { ($0["name"] as? String)?.hasSuffix(".zip") == true }
-                let shaAsset = assets.first { ($0["name"] as? String)?.hasSuffix(".sha256") == true }
+                let names = assets.compactMap { $0["name"] as? String }
+                let zipName = Self.preferredAssetName(in: names, suffix: ".zip")
+                let shaName = Self.preferredAssetName(in: names, suffix: ".zip.sha256")
+                let zipAsset = assets.first { ($0["name"] as? String) == zipName }
+                let shaAsset = assets.first { ($0["name"] as? String) == shaName }
                 latestAssetURL = (zipAsset?["browser_download_url"] as? String).flatMap { URL(string: $0) }
                 latestSHA256URL = (shaAsset?["browser_download_url"] as? String).flatMap { URL(string: $0) }
             }

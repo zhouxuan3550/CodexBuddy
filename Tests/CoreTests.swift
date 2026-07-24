@@ -6,6 +6,7 @@ struct CoreTests {
     static func main() async {
         testCodexBuddyIdentity()
         testOfficialUsageMenu()
+        testArchitectureSpecificUpdateAssets()
         testLaunchAtLoginStatusIsExplicit()
         testDomainFormattingAndThresholds()
         testSettingsMigrationAndDefaults()
@@ -38,6 +39,32 @@ struct CoreTests {
         expect(
             ProductIdentity.officialUsageURL.absoluteString == "https://chatgpt.com/codex/settings/usage",
             "official Usage menu opens the current OpenAI Usage page"
+        )
+    }
+
+    private static func testArchitectureSpecificUpdateAssets() {
+        let names = [
+            "CodexBuddy-v0.7.1-arm64.dmg",
+            "CodexBuddy-v0.7.1-arm64.zip",
+            "CodexBuddy-v0.7.1-arm64.zip.sha256",
+            "CodexBuddy-v0.7.1-x86_64.dmg",
+            "CodexBuddy-v0.7.1-x86_64.zip",
+            "CodexBuddy-v0.7.1-x86_64.zip.sha256"
+        ]
+        expect(
+            UpdateChecker.preferredAssetName(in: names, architecture: "arm64", suffix: ".zip")
+                == "CodexBuddy-v0.7.1-arm64.zip",
+            "Apple Silicon updates select the arm64 ZIP"
+        )
+        expect(
+            UpdateChecker.preferredAssetName(in: names, architecture: "x86_64", suffix: ".zip")
+                == "CodexBuddy-v0.7.1-x86_64.zip",
+            "Intel updates select the x86_64 ZIP"
+        )
+        expect(
+            UpdateChecker.preferredAssetName(in: names, architecture: "x86_64", suffix: ".zip.sha256")
+                == "CodexBuddy-v0.7.1-x86_64.zip.sha256",
+            "update checksum matches the selected architecture"
         )
     }
 

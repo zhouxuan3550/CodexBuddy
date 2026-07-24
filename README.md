@@ -76,8 +76,8 @@ build/CodexBuddy.app
 ~~~sh
 APP_NAME=CodexBuddy \
 BUNDLE_ID=com.zhouxuan3550.codexbuddy \
-VERSION=0.7.0 \
-BUILD_NUMBER=13 \
+VERSION=0.7.1 \
+BUILD_NUMBER=14 \
 ARCHS="arm64 x86_64" \
 bash scripts/build.sh
 ~~~
