@@ -4,8 +4,8 @@ set -euo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$project_root/scripts/version.sh"
 
-if [[ "$APP_VERSION" != "0.7.1" || "$APP_BUILD_NUMBER" != "14" ]]; then
-  echo "Expected v0.7.1 build 14, found v$APP_VERSION build $APP_BUILD_NUMBER" >&2
+if [[ "$APP_VERSION" != "0.7.2" || "$APP_BUILD_NUMBER" != "15" ]]; then
+  echo "Expected v0.7.2 build 15, found v$APP_VERSION build $APP_BUILD_NUMBER" >&2
   exit 1
 fi
 

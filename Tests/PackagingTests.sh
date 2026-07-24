@@ -15,11 +15,11 @@ assert_equal() {
   fi
 }
 
-assert_equal "CodexBuddy-v0.7.1-arm64.zip" "$(artifact_zip_name CodexBuddy 0.7.1 arm64)"
-assert_equal "CodexBuddy-v0.7.1-x86_64.zip" "$(artifact_zip_name CodexBuddy 0.7.1 x86_64)"
-assert_equal "CodexBuddy-v0.7.1.zip" "$(artifact_zip_name CodexBuddy 0.7.1 '')"
-assert_equal "CodexBuddy-v0.7.1-arm64.dmg" "$(artifact_dmg_name CodexBuddy 0.7.1 arm64)"
-assert_equal "CodexBuddy-v0.7.1-x86_64.dmg" "$(artifact_dmg_name CodexBuddy 0.7.1 x86_64)"
-assert_equal "CodexBuddy-v0.7.1.dmg" "$(artifact_dmg_name CodexBuddy 0.7.1 '')"
+assert_equal "CodexBuddy-v0.7.2-arm64.zip" "$(artifact_zip_name CodexBuddy 0.7.2 arm64)"
+assert_equal "CodexBuddy-v0.7.2-x86_64.zip" "$(artifact_zip_name CodexBuddy 0.7.2 x86_64)"
+assert_equal "CodexBuddy-v0.7.2.zip" "$(artifact_zip_name CodexBuddy 0.7.2 '')"
+assert_equal "CodexBuddy-v0.7.2-arm64.dmg" "$(artifact_dmg_name CodexBuddy 0.7.2 arm64)"
+assert_equal "CodexBuddy-v0.7.2-x86_64.dmg" "$(artifact_dmg_name CodexBuddy 0.7.2 x86_64)"
+assert_equal "CodexBuddy-v0.7.2.dmg" "$(artifact_dmg_name CodexBuddy 0.7.2 '')"
 
 echo "Packaging tests passed"
