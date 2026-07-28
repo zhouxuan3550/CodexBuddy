@@ -130,8 +130,15 @@ struct CoreTests {
         }
         defer { defaults.removePersistentDomain(forName: suite) }
         expect(AppSettings(defaults: defaults).menuBarMode == .allWindows, "display defaults to both windows")
+        expect(!AppSettings(defaults: defaults).floatingWidgetEnabled, "floating widget defaults to off")
         defaults.set("worst", forKey: "menuBarMode")
         expect(AppSettings(defaults: defaults).menuBarMode == .tightest, "legacy compact setting migrates")
+        defaults.set(true, forKey: "floatingWidgetEnabled")
+        expect(AppSettings(defaults: defaults).floatingWidgetEnabled, "floating widget preference persists")
+        expect(
+            L10n.floatingWidgetTitle(isEnabled: true, language: .simplifiedChinese) == "桌面悬浮窗 · 已开启",
+            "floating widget setting has an explicit Chinese state"
+        )
     }
 
     private static func testSessionFixture() async {

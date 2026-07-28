@@ -64,6 +64,7 @@ enum L10nKey {
     case worstWindowMode
     case showShortWindow
     case showWeekWindow
+    case floatingWidget
     case resetCountdownTitle
     case resetCountdownBody
     case tokenActivity
@@ -82,6 +83,17 @@ enum L10n {
             state = isEnabled ? "On" : "Off"
         }
         return "\(text(.launchAtLogin, language: language)) · \(state)"
+    }
+
+    static func floatingWidgetTitle(isEnabled: Bool, language: AppLanguage) -> String {
+        let state: String
+        switch language.resolved {
+        case .simplifiedChinese:
+            state = isEnabled ? "已开启" : "已关闭"
+        case .english, .system:
+            state = isEnabled ? "On" : "Off"
+        }
+        return "\(text(.floatingWidget, language: language)) · \(state)"
     }
 
     static func text(_ key: L10nKey, language: AppLanguage) -> String {
@@ -146,6 +158,7 @@ enum L10n {
         case .worstWindowMode: return "单值（最紧张）"
         case .showShortWindow: return "短时窗口"
         case .showWeekWindow: return "每周窗口"
+        case .floatingWidget: return "桌面悬浮窗"
         case .resetCountdownTitle: return "用量即将重置"
         case .resetCountdownBody: return "用量将在 5 分钟内重置，可放心使用"
         case .tokenActivity: return "Token 活动"
@@ -208,6 +221,7 @@ enum L10n {
         case .worstWindowMode: return "Single Value (Most Urgent)"
         case .showShortWindow: return "Short Window"
         case .showWeekWindow: return "Weekly Window"
+        case .floatingWidget: return "Desktop Floating Widget"
         case .resetCountdownTitle: return "Usage Reset Imminent"
         case .resetCountdownBody: return "Usage will reset within 5 minutes"
         case .tokenActivity: return "Token Activity"

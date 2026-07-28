@@ -69,6 +69,7 @@ enum DiagnosticExporter {
         lines.append("Notifications: \(settings.notificationsEnabled ? "on" : "off") (threshold \(settings.notificationThreshold)%)")
         lines.append("Language: \(settings.language.rawValue)")
         lines.append("Launch at login: \(settings.launchAtLoginEnabled)")
+        lines.append("Floating widget: \(settings.floatingWidgetEnabled)")
         lines.append("")
 
         // History summary (no conversation content)

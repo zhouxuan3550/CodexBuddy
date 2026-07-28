@@ -32,9 +32,11 @@ compile_architecture() {
     -target "$architecture-apple-macos13.0" \
     -module-cache-path "$cache" \
     -framework AppKit \
+    -framework Charts \
     -framework Combine \
     -framework CoreServices \
     -framework ServiceManagement \
+    -framework SwiftUI \
     -framework UserNotifications \
     "$project_root/CodexBuddy/"*.swift \
     -o "$binary"

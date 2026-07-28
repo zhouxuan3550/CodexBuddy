@@ -35,10 +35,17 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(menuBarMode.rawValue, forKey: Keys.menuBarMode) }
     }
 
+    @Published var floatingWidgetEnabled: Bool {
+        didSet { defaults.set(floatingWidgetEnabled, forKey: Keys.floatingWidgetEnabled) }
+    }
+
     @Published private(set) var launchAtLoginEnabled: Bool
+    @Published private(set) var launchAtLoginRequiresApproval: Bool
+    @Published private(set) var launchAtLoginIsUpdating = false
     @Published private(set) var settingsError: String?
 
     private let defaults: UserDefaults
+    private var launchAtLoginRefreshTask: Task<Void, Never>?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -59,29 +66,113 @@ final class AppSettings: ObservableObject {
         let savedMode = defaults.string(forKey: Keys.menuBarMode)
         menuBarMode = savedMode.flatMap(StatusDisplayMode.init(rawValue:))
             ?? (savedMode == "worst" ? .tightest : .allWindows)
+        floatingWidgetEnabled = defaults.object(forKey: Keys.floatingWidgetEnabled) as? Bool ?? false
 
         let status = SMAppService.mainApp.status
-        launchAtLoginEnabled = status == .enabled || status == .requiresApproval
+        launchAtLoginEnabled = Self.isLaunchAtLoginRegistered(status)
+        launchAtLoginRequiresApproval = status == .requiresApproval
     }
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        guard !launchAtLoginIsUpdating else {
+            return
+        }
+
+        launchAtLoginRefreshTask?.cancel()
+
         let service = SMAppService.mainApp
+        settingsError = nil
+        launchAtLoginEnabled = enabled
+        launchAtLoginRequiresApproval = false
+        launchAtLoginIsUpdating = true
 
         do {
             if enabled {
-                if service.status == .notRegistered {
+                if !Self.isLaunchAtLoginRegistered(service.status) {
                     try service.register()
                 }
-            } else if service.status != .notRegistered {
+            } else if Self.isLaunchAtLoginRegistered(service.status) {
                 try service.unregister()
             }
-
-            launchAtLoginEnabled = service.status == .enabled || service.status == .requiresApproval
-            settingsError = nil
         } catch {
-            launchAtLoginEnabled = service.status == .enabled || service.status == .requiresApproval
+            applyLaunchAtLoginStatus(service.status)
             settingsError = error.localizedDescription
+            return
         }
+
+        launchAtLoginRefreshTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            for attempt in 0..<6 {
+                if attempt > 0 {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                }
+
+                guard !Task.isCancelled else {
+                    return
+                }
+
+                let status = SMAppService.mainApp.status
+                if Self.status(status, matchesEnabledState: enabled) {
+                    applyLaunchAtLoginStatus(status)
+                    return
+                }
+            }
+
+            let status = SMAppService.mainApp.status
+            applyLaunchAtLoginStatus(status)
+
+            if launchAtLoginEnabled != enabled {
+                settingsError = launchAtLoginSyncError(expectedEnabled: enabled)
+            }
+        }
+    }
+
+    func refreshLaunchAtLoginState() {
+        guard !launchAtLoginIsUpdating else {
+            return
+        }
+
+        applyLaunchAtLoginStatus(SMAppService.mainApp.status)
+    }
+
+    func openLoginItemsSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+
+    private static func isLaunchAtLoginRegistered(_ status: SMAppService.Status) -> Bool {
+        status == .enabled || status == .requiresApproval
+    }
+
+    private static func status(
+        _ status: SMAppService.Status,
+        matchesEnabledState enabled: Bool
+    ) -> Bool {
+        if enabled {
+            return status == .enabled || status == .requiresApproval
+        }
+
+        return status == .notRegistered || status == .notFound
+    }
+
+    private func applyLaunchAtLoginStatus(_ status: SMAppService.Status) {
+        launchAtLoginEnabled = Self.isLaunchAtLoginRegistered(status)
+        launchAtLoginRequiresApproval = status == .requiresApproval
+        launchAtLoginIsUpdating = false
+    }
+
+    private func launchAtLoginSyncError(expectedEnabled: Bool) -> String {
+        if language.resolved == .english {
+            return expectedEnabled
+                ? "macOS did not enable the login item. Try again or allow it in System Settings."
+                : "macOS did not disable the login item. Try again in System Settings."
+        }
+
+        return expectedEnabled
+            ? "macOS 未能启用登录项，请重试或前往系统设置允许。"
+            : "macOS 未能关闭登录项，请前往系统设置重试。"
     }
 
     private enum Keys {
@@ -92,5 +183,6 @@ final class AppSettings: ObservableObject {
         static let showShortWindow = "showShortWindow"
         static let showWeekWindow = "showWeekWindow"
         static let menuBarMode = "menuBarMode"
+        static let floatingWidgetEnabled = "floatingWidgetEnabled"
     }
 }

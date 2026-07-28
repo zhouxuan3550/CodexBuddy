@@ -17,6 +17,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     let activityStore: UsageActivityStore
     weak var heatmapView: UsageHeatmapView?
     var updateWindow: UpdateWindowController?
+    var floatingPanel: FloatingUsagePanelController?
+    var settingsWindow: SettingsWindowController?
+    var dashboardWindow: UsageDashboardWindowController?
 
     init(model: UsageViewModel, settings: AppSettings, historyStore: UsageHistoryStore, activityStore: UsageActivityStore, updateChecker: UpdateChecker, autoUpdater: AutoUpdater) {
         self.model = model
@@ -27,10 +30,44 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         self.autoUpdater = autoUpdater
         super.init()
         configureStatusItem()
+        configureFloatingPanel()
         observeSettings()
         observeUpdateChecker()
         observeActivityStore()
         rebuildMenu()
+        if ProcessInfo.processInfo.environment["CODEX_BUDDY_SETTINGS"] == "1" {
+            DispatchQueue.main.async { [weak self] in
+                self?.openSettings()
+            }
+        }
+        if ProcessInfo.processInfo.environment["CODEX_BUDDY_DASHBOARD"] == "1" {
+            DispatchQueue.main.async { [weak self] in
+                self?.openUsageDashboard()
+            }
+        }
+    }
+
+    private func configureFloatingPanel() {
+        let controller = FloatingUsagePanelController(
+            model: model,
+            settings: settings,
+            onOpenDetails: { [weak self] in
+                self?.openUsageDashboard()
+            }
+        )
+        floatingPanel = controller
+        let forcePreview = ProcessInfo.processInfo.environment["CODEX_BUDDY_FLOATING_WIDGET"] == "1"
+
+        settings.$floatingWidgetEnabled
+            .removeDuplicates()
+            .sink { [weak controller] enabled in
+                if enabled || forcePreview {
+                    controller?.show()
+                } else {
+                    controller?.hide()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func refreshTitle() {
@@ -195,6 +232,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         heatmapView = heatmap
 
         menu.addItem(.separator())
+
+        let dashboardItem = NSMenuItem(
+            title: UsageDashboardCopy(language: language).menuTitle,
+            action: #selector(openUsageDashboard),
+            keyEquivalent: "d"
+        )
+        dashboardItem.target = self
+        dashboardItem.image = menuImage(named: "chart.bar.xaxis")
+        menu.addItem(dashboardItem)
 
         let refreshItem = NSMenuItem(
             title: model.isReloading ? L10n.text(.refreshing, language: language) : L10n.text(.refresh, language: language),

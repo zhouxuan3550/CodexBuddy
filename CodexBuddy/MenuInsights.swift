@@ -190,22 +190,6 @@ extension MenuBarCoordinator {
             .store(in: &cancellables)
     }
 
-    @objc func toggleShowShortWindow() {
-        settings.showShortWindow.toggle()
-    }
-
-    @objc func selectStatusDisplayMode(_ sender: NSMenuItem) {
-        guard
-            let rawValue = sender.representedObject as? String,
-            let mode = StatusDisplayMode(rawValue: rawValue)
-        else { return }
-        settings.menuBarMode = mode
-    }
-
-    @objc func toggleShowWeekWindow() {
-        settings.showWeekWindow.toggle()
-    }
-
     @objc func exportCSV() {
         CSVExporter.export(historyStore: historyStore, language: language)
     }
