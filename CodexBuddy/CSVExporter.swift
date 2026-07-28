@@ -32,6 +32,26 @@ enum CSVExporter {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
+    /// Exports the per-day token totals shown in the usage dashboard.
+    static func exportDailyTokens(_ dailyTokens: [String: Int64]) {
+        guard !dailyTokens.isEmpty else { return }
+
+        var lines: [String] = ["date,tokens"]
+        for key in dailyTokens.keys.sorted() {
+            lines.append("\(key),\(dailyTokens[key] ?? 0)")
+        }
+        let csv = lines.joined(separator: "\n")
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.nameFieldStringValue = "\(ProductIdentity.name)-DailyTokens-\(dateStamp()).csv"
+        panel.canCreateDirectories = true
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? csv.write(to: url, atomically: true, encoding: .utf8)
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
     private static func dateStamp() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"

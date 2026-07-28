@@ -81,6 +81,31 @@ final class CodexBuddyApplication: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Deep links for Raycast/Alfred/scripts: codexbuddy://dashboard,
+    /// codexbuddy://preflight, codexbuddy://settings and codexbuddy://refresh.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            switch url.host?.lowercased() {
+            case "dashboard":
+                menuBar?.openUsageDashboard()
+            case "preflight":
+                let copyResult = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?
+                    .contains(where: { $0.name == "copy" && $0.value == "1" }) ?? false
+                menuBar?.showTaskReadiness(copyResult: copyResult)
+            case "settings":
+                menuBar?.openSettings()
+            case "refresh":
+                if let usageModel {
+                    Task { await usageModel.reload() }
+                }
+                activity?.rescan()
+            default:
+                break
+            }
+        }
+    }
+
     private func observe(
         model: UsageViewModel,
         settings: AppSettings,
@@ -94,7 +119,7 @@ final class CodexBuddyApplication: NSObject, NSApplicationDelegate {
 
         model.$reading
             .compactMap { $0 }
-            .sink { [weak settings, weak notifications, weak history] reading in
+            .sink { [weak settings, weak notifications, weak history, weak activity] reading in
                 guard let settings else { return }
                 notifications?.evaluate(
                     reading: reading,
@@ -108,6 +133,24 @@ final class CodexBuddyApplication: NSObject, NSApplicationDelegate {
                     enabled: settings.notificationsEnabled
                 )
                 history?.record(reading: reading)
+                // Record first so the freshest point feeds the burn-rate model.
+                notifications?.evaluateDepletionForecast(
+                    reading: reading,
+                    records: history?.records24h() ?? [],
+                    language: settings.language,
+                    enabled: settings.notificationsEnabled
+                )
+                notifications?.evaluateSurplusReminder(
+                    reading: reading,
+                    language: settings.language,
+                    enabled: settings.notificationsEnabled
+                )
+                notifications?.evaluateWeeklyReport(
+                    reading: reading,
+                    dailyBreakdown: activity?.dailyBreakdown ?? [:],
+                    language: settings.language,
+                    enabled: settings.notificationsEnabled
+                )
             }
             .store(in: &subscriptions)
 

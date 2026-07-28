@@ -51,11 +51,45 @@ struct CreditState: Codable, Equatable {
 enum StatusDisplayMode: String, CaseIterable {
     case allWindows = "dual"
     case tightest = "worst"
+    case todayTokens = "today"
+}
+
+/// Compact token counts for narrow UI (menu bar, notifications): Chinese
+/// readers get 万/亿 units, everyone else gets K/M/B.
+enum TokenFormat {
+    static func compact(_ value: Int64, language: AppLanguage) -> String {
+        let number = Double(value)
+        if language.resolved == .simplifiedChinese {
+            if value >= 100_000_000 { return trimmed(number / 100_000_000) + "亿" }
+            if value >= 10_000 { return trimmed(number / 10_000) + "万" }
+            return "\(value)"
+        }
+        if value >= 1_000_000_000 { return trimmed(number / 1_000_000_000) + "B" }
+        if value >= 1_000_000 { return trimmed(number / 1_000_000) + "M" }
+        if value >= 1_000 { return trimmed(number / 1_000) + "K" }
+        return "\(value)"
+    }
+
+    private static func trimmed(_ value: Double) -> String {
+        let text = String(format: "%.1f", value)
+        return text.hasSuffix(".0") ? String(text.dropLast(2)) : text
+    }
+}
+
+/// Keeps the detailed dashboard focused on meaningful work. Tiny incidental
+/// events remain part of totals and charts, but do not consume a row in the
+/// project/model/source breakdown.
+enum UsageDetailFilter {
+    static let minimumVisibleTokens: Int64 = 10_000_000
+
+    static func shouldDisplay(tokens: Int64) -> Bool {
+        tokens >= minimumVisibleTokens
+    }
 }
 
 struct StatusSegment: Equatable {
     let text: String
-    let percent: Int
+    let percent: Int?
 }
 
 struct UsageReading: Equatable {
@@ -85,17 +119,25 @@ struct UsageReading: Equatable {
         showShortWindow: Bool,
         showWeekWindow: Bool
     ) -> [StatusSegment] {
+        // Today-tokens mode is fed by the activity store, not this reading.
+        if mode == .todayTokens { return [] }
         if mode == .tightest {
             guard let window = tightestWindow else { return [] }
             return [segment(for: window)]
         }
 
         var values: [StatusSegment] = []
-        if showShortWindow, let shortWindow {
-            values.append(segment(for: shortWindow))
+        if showShortWindow {
+            values.append(
+                shortWindow.map(segment(for:))
+                    ?? StatusSegment(text: "H --%", percent: nil)
+            )
         }
-        if showWeekWindow, let weekWindow {
-            values.append(segment(for: weekWindow))
+        if showWeekWindow {
+            values.append(
+                weekWindow.map(segment(for:))
+                    ?? StatusSegment(text: "W --%", percent: nil)
+            )
         }
         return values
     }
@@ -123,11 +165,12 @@ struct UsageReading: Equatable {
 
     private func resetLabel(_ window: QuotaWindow, language: AppLanguage) -> String {
         guard let resetAt = window.resetAt else { return "--" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US")
-        formatter.dateFormat = window.isWeekly
-            ? (language.resolved == .simplifiedChinese ? "M月d日" : "MMM d")
-            : "HH:mm"
+        let formatter = UIDateFormatters.formatter(
+            dateFormat: window.isWeekly
+                ? (language.resolved == .simplifiedChinese ? "M月d日" : "MMM d")
+                : "HH:mm",
+            localeIdentifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US"
+        )
         return formatter.string(from: resetAt)
     }
 

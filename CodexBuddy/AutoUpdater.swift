@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import Foundation
 
 /// Downloads, verifies, and installs updates from GitHub Releases.
@@ -50,14 +51,17 @@ final class AutoUpdater: ObservableObject {
 
                 state = .downloading(progress: 0.7)
 
-                // Verify SHA-256 if available
-                if let shaURL = checker.latestSHA256URL {
-                    let valid = try await verifySHA256(fileURL: zipURL, shaURL: shaURL)
-                    if !valid {
-                        state = .failed("SHA-256 verification failed")
-                        try? FileManager.default.removeItem(at: zipURL)
-                        return
-                    }
+                // SHA-256 checksum is mandatory: refuse to install unverifiable payloads.
+                guard let shaURL = checker.latestSHA256URL else {
+                    state = .failed("Missing SHA-256 checksum for update asset")
+                    try? FileManager.default.removeItem(at: zipURL)
+                    return
+                }
+                let valid = try await verifySHA256(fileURL: zipURL, shaURL: shaURL)
+                if !valid {
+                    state = .failed("SHA-256 verification failed")
+                    try? FileManager.default.removeItem(at: zipURL)
+                    return
                 }
 
                 state = .downloading(progress: 0.9)
@@ -85,32 +89,24 @@ final class AutoUpdater: ObservableObject {
 
     private func downloadFile(from url: URL) async throws -> URL {
         let request = URLRequest(url: url, timeoutInterval: 120)
-        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+        // Delegate-based download avoids per-byte async iteration for multi-MB assets.
+        let delegate = DownloadProgressDelegate { [weak self] fraction in
+            Task { @MainActor in
+                guard let self, case .downloading = self.state else { return }
+                self.state = .downloading(progress: fraction * 0.7)
+            }
+        }
+        let (tempURL, response) = try await URLSession.shared.download(for: request, delegate: delegate)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
+            try? FileManager.default.removeItem(at: tempURL)
             throw UpdateError.downloadFailed
         }
 
-        let expectedLength = response.expectedContentLength
         let tempDir = FileManager.default.temporaryDirectory
         let zipURL = tempDir.appendingPathComponent("\(ProductIdentity.name)-update-\(UUID().uuidString).zip")
-
-        var downloaded: Int64 = 0
-        var buffer = Data()
-        buffer.reserveCapacity(expectedLength > 0 ? Int(min(expectedLength, 50 * 1024 * 1024)) : 1024 * 1024)
-
-        for try await byte in asyncBytes {
-            buffer.append(byte)
-            downloaded += 1
-
-            if expectedLength > 0, downloaded % 65536 == 0 {
-                let progress = Double(downloaded) / Double(expectedLength) * 0.7
-                state = .downloading(progress: progress)
-            }
-        }
-
-        try buffer.write(to: zipURL)
+        try FileManager.default.moveItem(at: tempURL, to: zipURL)
         return zipURL
     }
 
@@ -185,12 +181,7 @@ final class AutoUpdater: ObservableObject {
     }
 
     private func sha256Hex(_ data: Data) -> String {
-        // Use CommonCrypto via Process for portability
-        var hash = [UInt8](repeating: 0, count: 32)
-        data.withUnsafeBytes { ptr in
-            _ = CC_SHA256_wrapper(ptr.baseAddress, Int(data.count), &hash)
-        }
-        return hash.map { String(format: "%02x", $0) }.joined()
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     enum UpdateError: LocalizedError {
@@ -208,10 +199,30 @@ final class AutoUpdater: ObservableObject {
     }
 }
 
-// CommonCrypto SHA-256 bridge
-import CommonCrypto
+/// Reports download progress for the async `URLSession.download(for:delegate:)` API.
+private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate {
+    private let onProgress: (Double) -> Void
 
-private func CC_SHA256_wrapper(_ data: UnsafeRawPointer?, _ len: Int, _ md: UnsafeMutablePointer<UInt8>) -> Int32 {
-    CC_SHA256(data, CC_LONG(len), md)
-    return 0
+    init(onProgress: @escaping (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        onProgress(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        // The async download(for:) API surfaces the file URL directly.
+    }
 }

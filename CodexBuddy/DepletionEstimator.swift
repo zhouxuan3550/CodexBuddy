@@ -98,6 +98,36 @@ enum DepletionEstimator {
         return ratePerMinute
     }
 
+    /// Gate for the depletion-forecast notification: fire only when the
+    /// window is predicted to run out BEFORE its reset, within `leadMinutes`
+    /// from now. A depletion past the reset resolves itself, so stay quiet.
+    static func forecastShouldFire(
+        estimate: Estimate,
+        resetAt: Date?,
+        leadMinutes: Int,
+        now: Date = Date()
+    ) -> Bool {
+        guard estimate.isDepleting, let depletedAt = estimate.depletedAt else { return false }
+        guard let resetAt, depletedAt < resetAt else { return false }
+        let interval = depletedAt.timeIntervalSince(now)
+        return interval > 0 && interval <= Double(leadMinutes) * 60
+    }
+
+    /// Gate for the surplus reminder (the inverse of the depletion alert):
+    /// fire when the reset is close but plenty of quota is still unused, so
+    /// the user knows they can spend freely instead of letting it expire.
+    static func surplusShouldFire(
+        remainingPercent: Int,
+        resetAt: Date?,
+        leadMinutes: Int,
+        minimumRemainingPercent: Int,
+        now: Date = Date()
+    ) -> Bool {
+        guard remainingPercent >= minimumRemainingPercent, let resetAt else { return false }
+        let interval = resetAt.timeIntervalSince(now)
+        return interval > 0 && interval <= Double(leadMinutes) * 60
+    }
+
     /// Formats the consumption rate for display (e.g. "~2.3%/h").
     static func formatRate(_ estimate: Estimate) -> String? {
         guard estimate.isDepleting else { return nil }

@@ -20,7 +20,14 @@ CodexBuddy 是一款原生、轻量的 macOS 菜单栏工具，用来实时查�
 - 在实时会话事件与 SQLite 响应头之间选择时间更新的数据
 - 显示恢复时间、数据来源、数据年龄和过期提醒
 - 保存最近 7 天的本地历史，并估算当前消耗速度
-- 支持低用量通知、登录时启动和自动检查更新
+- 独立的毛玻璃设置窗口，集中管理显示、刷新、通知与数据选项
+- 可选的桌面悬浮用量组件，点击展开两个窗口的详情
+- 用量详情面板：Token 消耗趋势、活跃天数与热力图
+- 支持低用量通知、重置倒计时提醒、登录时启动和自动检查更新
+- 任务前检查：根据每周额度、安全余量和近期消耗趋势，建议开始、拆小或保留额度
+- 支持 `codexbuddy://dashboard`、`codexbuddy://preflight`、`codexbuddy://settings` 与 `codexbuddy://refresh`，便于 Raycast、Alfred 或脚本调用
+- 使用 `codexbuddy://preflight?copy=1` 可在刷新后将任务前检查结论复制到剪贴板
+- DMG 内含命令行助手：`/Applications/CodexBuddy.app/Contents/Resources/codexbuddy preflight --copy` 可输出任务前检查结论；也支持 `dashboard`、`settings` 与 `refresh`
 - 支持简体中文、English 和跟随系统
 - 原生支持 Apple Silicon 与 Intel Mac
 <!-- CodexBuddy document boundary 7 -->
@@ -76,23 +83,25 @@ build/CodexBuddy.app
 ~~~sh
 APP_NAME=CodexBuddy \
 BUNDLE_ID=com.zhouxuan3550.codexbuddy \
-VERSION=0.7.3 \
-BUILD_NUMBER=16 \
+VERSION=1.0.0 \
+BUILD_NUMBER=23 \
 ARCHS="arm64 x86_64" \
 bash scripts/build.sh
 ~~~
 <!-- CodexBuddy document boundary 25 -->
 ## 架构
 <!-- CodexBuddy document boundary 26 -->
-v0.7 的主要数据流：
+v1.0 的主要数据流：
 <!-- CodexBuddy document boundary 27 -->
 ~~~text
-LocalUsageReader → UsageViewModel → MenuBarCoordinator
+LocalUsageReader → UsageViewModel → MenuBarHost → 菜单栏 / 悬浮组件 / 设置窗口
+UsageActivityStore → 用量详情面板（趋势与热力图）
 ~~~
 <!-- CodexBuddy document boundary 28 -->
 - `LocalUsageReader`：读取会话事件和响应头备用数据
 - `UsageViewModel`：管理刷新状态、错误和格式异常防抖
-- `MenuBarCoordinator`：协调菜单栏显示、设置、历史与更新操作
+- `MenuBarHost`：协调菜单栏显示、设置窗口、悬浮组件、历史与更新操作
+- `UsageActivityStore`：增量扫描会话文件，统计每日 Token 消耗供详情面板与热力图使用
 <!-- CodexBuddy document boundary 29 -->
 ## 开源协议
 <!-- CodexBuddy document boundary 30 -->

@@ -1,0 +1,60 @@
+#!/bin/bash
+set -euo pipefail
+
+# Small companion for Raycast, Alfred and shell workflows. It deliberately
+# talks to the installed app through its URL Scheme instead of re-reading
+# Codex files, so every result uses the same health checks as the UI.
+
+usage() {
+  cat <<'EOF'
+Usage: codexbuddy <command>
+
+Commands:
+  dashboard          Open usage details
+  settings           Open CodexBuddy settings
+  refresh            Refresh quota data
+  preflight          Open the task preflight check
+  preflight --copy   Refresh, copy the preflight result, and print it
+  help               Show this help
+EOF
+}
+
+command="${1:-dashboard}"
+option="${2:-}"
+
+case "$command" in
+  dashboard|settings|refresh)
+    /usr/bin/open "codexbuddy://$command"
+    ;;
+  preflight)
+    if [[ "$option" != "--copy" ]]; then
+      /usr/bin/open "codexbuddy://preflight"
+      exit 0
+    fi
+
+    before="$(/usr/bin/pbpaste 2>/dev/null || true)"
+    /usr/bin/open "codexbuddy://preflight?copy=1"
+
+    # Local refresh normally completes almost immediately. Polling lets a
+    # Raycast script receive useful text without guessing a fixed sleep.
+    for _ in {1..32}; do
+      /bin/sleep 0.25
+      result="$(/usr/bin/pbpaste 2>/dev/null || true)"
+      if [[ "$result" != "$before" ]] && \
+         { [[ "$result" == *"任务前检查"* ]] || [[ "$result" == *"Task Check"* ]]; }; then
+        printf '%s\n' "$result"
+        exit 0
+      fi
+    done
+
+    echo "CodexBuddy did not return a preflight result in time." >&2
+    exit 1
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 64
+    ;;
+esac

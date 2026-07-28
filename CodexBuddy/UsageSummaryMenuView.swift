@@ -294,18 +294,20 @@ final class UsageSummaryMenuView: NSView {
     }
 
     private func currentDateText(language: AppLanguage, now: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US")
-        formatter.dateFormat = language.resolved == .simplifiedChinese ? "M月d日" : "MMM d"
+        let formatter = UIDateFormatters.formatter(
+            dateFormat: language.resolved == .simplifiedChinese ? "M月d日" : "MMM d",
+            localeIdentifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US"
+        )
         let date = formatter.string(from: now)
         return language.resolved == .simplifiedChinese ? "现在 · \(date)" : "Now · \(date)"
     }
 
     private func resetDateText(for window: QuotaWindow, language: AppLanguage) -> String {
         guard let resetAt = window.resetAt else { return "--" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US")
-        formatter.dateFormat = language.resolved == .simplifiedChinese ? "M月d日" : "MMM d"
+        let formatter = UIDateFormatters.formatter(
+            dateFormat: language.resolved == .simplifiedChinese ? "M月d日" : "MMM d",
+            localeIdentifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US"
+        )
         let date = formatter.string(from: resetAt)
         return language.resolved == .simplifiedChinese ? "恢复 · \(date)" : "Reset · \(date)"
     }

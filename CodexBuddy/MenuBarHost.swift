@@ -20,6 +20,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     var floatingPanel: FloatingUsagePanelController?
     var settingsWindow: SettingsWindowController?
     var dashboardWindow: UsageDashboardWindowController?
+    var taskReadinessWindow: TaskReadinessWindowController?
+    private var hotKey: GlobalHotKey?
 
     init(model: UsageViewModel, settings: AppSettings, historyStore: UsageHistoryStore, activityStore: UsageActivityStore, updateChecker: UpdateChecker, autoUpdater: AutoUpdater) {
         self.model = model
@@ -31,6 +33,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         super.init()
         configureStatusItem()
         configureFloatingPanel()
+        configureHotKey()
         observeSettings()
         observeUpdateChecker()
         observeActivityStore()
@@ -65,6 +68,25 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
                     controller?.show()
                 } else {
                     controller?.hide()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Registers ⌥⌘U while the setting is on; dropping the instance
+    /// unregisters it, so toggling the switch takes effect immediately.
+    private func configureHotKey() {
+        settings.$globalHotkeyEnabled
+            .removeDuplicates()
+            .sink { [weak self] enabled in
+                guard let self else { return }
+                if enabled {
+                    guard self.hotKey == nil else { return }
+                    self.hotKey = GlobalHotKey.optionCommandU { [weak self] in
+                        self?.toggleUsageDashboard()
+                    }
+                } else {
+                    self.hotKey = nil
                 }
             }
             .store(in: &cancellables)
@@ -105,7 +127,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         guard let button = statusItem.button else { return }
 
         let segments: [(text: String, percent: Int?)]
-        if let reading = model.reading {
+        if settings.menuBarMode == .todayTokens {
+            // Fed by the activity store: show today's total token consumption.
+            let todayKey = UIDateFormatters.formatter(
+                dateFormat: "yyyy-MM-dd",
+                localeIdentifier: "en_US_POSIX"
+            ).string(from: Date())
+            let tokens = activityStore.dailyTokens[todayKey] ?? 0
+            segments = [("T \(TokenFormat.compact(tokens, language: language))", nil)]
+        } else if let reading = model.reading {
             let availableSegments = reading.menuBarSegments(
                 mode: settings.menuBarMode,
                 showShortWindow: settings.showShortWindow,
@@ -152,11 +182,49 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
         button.title = ""
         button.attributedTitle = title
+        updateSparkline(on: button)
         button.setAccessibilityLabel(model.statusText)
         if let reading = model.reading {
             button.toolTip = "\(reading.completeStatusText) · \(model.updatedText(language: language))"
         } else {
             button.toolTip = ProductIdentity.name
+        }
+    }
+
+    /// Appends a tiny trend line after the text when the user opts in:
+    /// percent modes plot the last 24h of remaining quota, today mode plots
+    /// the last 7 days of token consumption.
+    private func updateSparkline(on button: NSStatusBarButton) {
+        guard settings.menuBarSparkline else {
+            button.image = nil
+            button.imagePosition = .noImage
+            return
+        }
+
+        let values: [Double]
+        if settings.menuBarMode == .todayTokens {
+            let formatter = UIDateFormatters.formatter(
+                dateFormat: "yyyy-MM-dd",
+                localeIdentifier: "en_US_POSIX"
+            )
+            let calendar = Calendar.current
+            let now = Date()
+            values = (0..<7).reversed().compactMap { offset -> Double? in
+                guard let date = calendar.date(byAdding: .day, value: -offset, to: now) else { return nil }
+                return Double(activityStore.dailyTokens[formatter.string(from: date)] ?? 0)
+            }
+        } else {
+            values = historyStore.records24h().compactMap { record in
+                record.shortRemaining.map(Double.init)
+            }
+        }
+
+        if let image = MenuBarSparkline.image(values: values) {
+            button.image = image
+            button.imagePosition = .imageTrailing
+        } else {
+            button.image = nil
+            button.imagePosition = .noImage
         }
     }
 
@@ -242,6 +310,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         dashboardItem.image = menuImage(named: "chart.bar.xaxis")
         menu.addItem(dashboardItem)
 
+        let taskCheckItem = NSMenuItem(
+            title: TaskReadinessCopy(language: language).title + "…",
+            action: #selector(openTaskReadiness),
+            keyEquivalent: ""
+        )
+        taskCheckItem.target = self
+        taskCheckItem.image = menuImage(named: "checkmark.seal")
+        menu.addItem(taskCheckItem)
+
         let refreshItem = NSMenuItem(
             title: model.isReloading ? L10n.text(.refreshing, language: language) : L10n.text(.refresh, language: language),
             action: #selector(refreshUsage),
@@ -294,5 +371,59 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         menu.addItem(quitItem)
 
         statusItem.menu = menu
+    }
+}
+
+/// Renders the tiny menu-bar trend line as a template image so it adapts to
+/// the menu bar's light/dark appearance automatically.
+@MainActor
+enum MenuBarSparkline {
+    nonisolated static let size = NSSize(width: 30, height: 12)
+
+    static func image(values: [Double], size: NSSize = size) -> NSImage? {
+        // Cap the point count so a dense 24h history stays smooth at 30pt.
+        let points = downsample(values, to: 24)
+        guard points.count >= 2 else { return nil }
+
+        let minValue = points.min() ?? 0
+        let maxValue = points.max() ?? 0
+        let range = maxValue - minValue
+
+        let image = NSImage(size: size, flipped: false) { rect in
+            let path = NSBezierPath()
+            path.lineWidth = 1.2
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+
+            let insetY: CGFloat = 1.5
+            let drawableHeight = rect.height - insetY * 2
+            let stepX = rect.width / CGFloat(points.count - 1)
+
+            for (index, value) in points.enumerated() {
+                let normalized = range > 0 ? (value - minValue) / range : 0.5
+                let point = NSPoint(
+                    x: CGFloat(index) * stepX,
+                    y: insetY + CGFloat(normalized) * drawableHeight
+                )
+                if index == 0 {
+                    path.move(to: point)
+                } else {
+                    path.line(to: point)
+                }
+            }
+
+            NSColor.black.setStroke()
+            path.stroke()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+
+    private static func downsample(_ values: [Double], to limit: Int) -> [Double] {
+        guard values.count > limit else { return values }
+        return (0..<limit).map { index in
+            values[index * (values.count - 1) / (limit - 1)]
+        }
     }
 }

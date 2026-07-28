@@ -125,6 +125,11 @@ struct LocalUsageReader: UsageReadingSource {
 
         var scan = SessionScan()
         for candidate in candidates.sorted(by: { $0.modifiedAt > $1.modifiedAt }).prefix(20) {
+            // Candidates are mtime-descending: once we hold a reading newer than the
+            // next file's mtime, later files cannot contain a fresher event.
+            if let reading = scan.reading, reading.updatedAt >= candidate.modifiedAt {
+                break
+            }
             switch latestEvent(in: candidate.url) {
             case .reading(let reading):
                 if scan.reading == nil || reading.updatedAt > scan.reading!.updatedAt {
@@ -256,10 +261,18 @@ struct LocalUsageReader: UsageReadingSource {
         return Int(body[valueRange])
     }
 
+    // ISO8601DateFormatter is thread-safe; cache instances since creation is expensive
+    // and parseTimestamp runs inside the per-line parsing loop.
+    private static let fractionalISOFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let plainISOFormatter = ISO8601DateFormatter()
+
     private static func parseTimestamp(_ value: String?) -> Date? {
         guard let value else { return nil }
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+        return fractionalISOFormatter.date(from: value) ?? plainISOFormatter.date(from: value)
     }
 }

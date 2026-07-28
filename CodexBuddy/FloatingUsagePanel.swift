@@ -212,6 +212,20 @@ final class FloatingUsagePanelController: NSObject, NSWindowDelegate {
     }
 }
 
+/// Behind-window blur: unlike SwiftUI materials, NSVisualEffectView samples
+/// the desktop content underneath the borderless panel.
+private struct FloatingBlurBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
 private struct FloatingUsageView: View {
     @ObservedObject var model: UsageViewModel
     @ObservedObject var settings: AppSettings
@@ -261,8 +275,10 @@ private struct FloatingUsageView: View {
 
     private var background: some View {
         ZStack {
-            Rectangle().fill(.ultraThinMaterial)
-            Color(red: 0.055, green: 0.063, blue: 0.078).opacity(0.88)
+            FloatingBlurBackground()
+            // Keep the tint light enough for the blur to show through;
+            // an opaque overlay used to bury it entirely.
+            Color(red: 0.055, green: 0.063, blue: 0.078).opacity(0.55)
         }
     }
 
@@ -481,13 +497,12 @@ private struct QuotaRow: View {
 
     private var resetText: String {
         guard let resetAt = window?.resetAt else { return "—" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(
-            identifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US"
+        let formatter = UIDateFormatters.formatter(
+            dateFormat: window?.isWeekly == true
+                ? (language.resolved == .simplifiedChinese ? "M月d日" : "MMM d")
+                : "HH:mm",
+            localeIdentifier: language.resolved == .simplifiedChinese ? "zh_CN" : "en_US"
         )
-        formatter.dateFormat = window?.isWeekly == true
-            ? (language.resolved == .simplifiedChinese ? "M月d日" : "MMM d")
-            : "HH:mm"
         let prefix = language.resolved == .simplifiedChinese ? "重置" : "resets"
         return "\(prefix) \(formatter.string(from: resetAt))"
     }

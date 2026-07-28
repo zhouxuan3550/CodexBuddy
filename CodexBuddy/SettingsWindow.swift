@@ -1,33 +1,72 @@
 import AppKit
+import Combine
 import SwiftUI
+
+/// Applies one predetermined content height for each settings pane. Keeping
+/// the dimensions deterministic avoids SwiftUI/AppKit feedback loops while
+/// the user is switching pages.
+@MainActor
+final class SettingsPaneSizer {
+    // The hosting view lays out (and reports preferences) before the window
+    // exists; remember the request so it can be applied once attached.
+    private(set) var pendingHeight: CGFloat?
+
+    weak var window: NSWindow? {
+        didSet {
+            guard window != nil, let pendingHeight else { return }
+            drive(height: pendingHeight)
+        }
+    }
+
+    /// Applies a pane height synchronously. There is intentionally no frame
+    /// animation: the page and its window size change together in one step.
+    func drive(height: CGFloat) {
+        pendingHeight = height
+        guard let window else { return }
+        let contentRect = NSRect(x: 0, y: 0, width: SettingsWindowController.contentWidth, height: height)
+        let targetSize = window.frameRect(forContentRect: contentRect).size
+        guard abs(window.frame.height - targetSize.height) > 0.1 else { return }
+        var frame = window.frame
+        let topY = frame.maxY
+        frame.size = targetSize
+        frame.origin.y = topY - targetSize.height
+        window.setFrame(frame, display: false)
+    }
+}
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    static let frameAutosaveName = "CodexBuddySettingsWindowGlassCompact"
+    // A new autosave key lets existing installs recover from older oversized frames.
+    static let frameAutosaveName = "CodexBuddySettingsWindowGlassCompactV2"
+    static let contentWidth: CGFloat = 540
 
     private let settings: AppSettings
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         model: UsageViewModel,
         settings: AppSettings,
         historyStore: UsageHistoryStore,
+        activityStore: UsageActivityStore,
         onCheckForUpdates: @escaping () -> Void
     ) {
         self.settings = settings
         let initialPane = SettingsPane.previewPane
+        let sizer = SettingsPaneSizer()
         let contentView = SettingsWindowView(
             model: model,
             settings: settings,
             historyStore: historyStore,
+            activityStore: activityStore,
             onCheckForUpdates: onCheckForUpdates,
+            sizer: sizer,
             initialPane: initialPane
         )
         let hostingController = NSHostingController(rootView: contentView)
+        // The pane sizer is the only thing allowed to drive the window size.
+        hostingController.sizingOptions = []
         let window = NSWindow(contentViewController: hostingController)
         window.title = SettingsCopy.settingsTitle(settings.language)
-        window.setContentSize(
-            NSSize(width: 540, height: initialPane.contentHeight)
-        )
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.titlebarAppearsTransparent = false
         window.titlebarSeparatorStyle = .line
@@ -40,11 +79,27 @@ final class SettingsWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName(Self.frameAutosaveName)
         window.setContentSize(
-            NSSize(width: 540, height: initialPane.contentHeight)
+            NSSize(width: Self.contentWidth, height: initialPane.contentHeight)
         )
+        // Center only on first launch; afterwards restore the user's saved frame.
+        if !window.setFrameUsingName(Self.frameAutosaveName) {
+            window.center()
+        }
+        sizer.window = window
+        // A saved frame may belong to a different pane; normalize it before
+        // the first draw so opening Settings never visibly jumps.
+        sizer.drive(height: initialPane.contentHeight)
 
         super.init(window: window)
         shouldCascadeWindows = false
+
+        // Keep the window title in sync with the app language.
+        settings.$language
+            .removeDuplicates()
+            .sink { [weak self] language in
+                self?.window?.title = SettingsCopy.settingsTitle(language)
+            }
+            .store(in: &cancellables)
     }
 
     @available(*, unavailable)
@@ -76,8 +131,16 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Fixed, tested pane sizes. Do not derive these from GeometryReader:
+    /// measurement changes during a transition were the source of the long
+    /// standing settings-window jitter.
     var contentHeight: CGFloat {
-        340
+        switch self {
+        case .general: return 356
+        case .display: return 470
+        case .refresh: return 370
+        case .data: return 400
+        }
     }
 
     static var previewPane: SettingsPane {
@@ -95,7 +158,9 @@ private struct SettingsWindowView: View {
     @ObservedObject var settings: AppSettings
 
     let historyStore: UsageHistoryStore
+    @ObservedObject var activityStore: UsageActivityStore
     let onCheckForUpdates: () -> Void
+    let sizer: SettingsPaneSizer
 
     @State private var selectedPane: SettingsPane
 
@@ -103,13 +168,17 @@ private struct SettingsWindowView: View {
         model: UsageViewModel,
         settings: AppSettings,
         historyStore: UsageHistoryStore,
+        activityStore: UsageActivityStore,
         onCheckForUpdates: @escaping () -> Void,
+        sizer: SettingsPaneSizer,
         initialPane: SettingsPane = .general
     ) {
         self.model = model
         self.settings = settings
         self.historyStore = historyStore
+        self.activityStore = activityStore
         self.onCheckForUpdates = onCheckForUpdates
+        self.sizer = sizer
         _selectedPane = State(initialValue: initialPane)
     }
 
@@ -122,47 +191,47 @@ private struct SettingsWindowView: View {
             SettingsGlassBackground()
 
             VStack(spacing: 0) {
-                SettingsTabBar(
-                    selection: $selectedPane,
-                    copy: copy,
-                    isLoading: model.isReloading
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                VStack(spacing: 0) {
+                    SettingsTabBar(
+                        selection: $selectedPane,
+                        copy: copy,
+                        isLoading: model.isReloading,
+                        onSelect: selectPane
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
 
-                Rectangle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(height: 1)
-
+                    Rectangle()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(height: 1)
+                }
                 ZStack(alignment: .topLeading) {
                     selectedSection
                         .id(selectedPane)
-                        .transition(
-                            .asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            )
-                        )
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .clipped()
                 .padding(18)
             }
         }
-        .frame(width: 540, height: selectedPane.contentHeight)
+        .frame(
+            width: SettingsWindowController.contentWidth,
+            height: selectedPane.contentHeight
+        )
         .preferredColorScheme(.dark)
-        .onChange(of: settings.language) { language in
-            NSApplication.shared.windows
-                .first(where: {
-                    $0.frameAutosaveName == SettingsWindowController.frameAutosaveName
-                })?
-                .title = SettingsCopy.settingsTitle(language)
-        }
+    }
+
+    private func selectPane(_ pane: SettingsPane) {
+        guard pane != selectedPane else { return }
+        // Resize first, then replace content without an animation. This is a
+        // single AppKit transaction instead of a sequence of layout passes.
+        sizer.drive(height: pane.contentHeight)
+        selectedPane = pane
     }
 
     @ViewBuilder
-    private var selectedSection: some View {
-        switch selectedPane {
+    private func paneSection(_ pane: SettingsPane) -> some View {
+        switch pane {
         case .general:
             generalSection
         case .display:
@@ -172,6 +241,10 @@ private struct SettingsWindowView: View {
         case .data:
             dataSection
         }
+    }
+
+    private var selectedSection: some View {
+        paneSection(selectedPane)
     }
 
     private var launchAtLoginDetail: String {
@@ -234,6 +307,8 @@ private struct SettingsWindowView: View {
                     }
                 }
             }
+
+            SettingsAboutCard(copy: copy, onCheckForUpdates: onCheckForUpdates)
         }
     }
 
@@ -259,7 +334,7 @@ private struct SettingsWindowView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .frame(width: 240)
+                    .frame(width: 260)
                 }
 
                 if settings.menuBarMode == .allWindows {
@@ -274,9 +349,26 @@ private struct SettingsWindowView: View {
                     .font(.caption.weight(.medium))
                 }
 
+                SettingsDivider()
+
+                SettingsRow(title: copy.sparkline, detail: copy.sparklineDetail) {
+                    Toggle("", isOn: $settings.menuBarSparkline)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                SettingsDivider()
+
+                SettingsRow(title: copy.globalHotkey, detail: copy.globalHotkeyDetail) {
+                    Toggle("", isOn: $settings.globalHotkeyEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
                 MenuBarSettingsPreview(
                     reading: model.reading,
                     settings: settings,
+                    activityStore: activityStore,
                     copy: copy
                 )
             }
@@ -320,6 +412,18 @@ private struct SettingsWindowView: View {
                         .frame(width: 90)
                     }
                 }
+
+                SettingsDivider()
+
+                SettingsRow(title: copy.weeklyReserve, detail: copy.weeklyReserveDetail) {
+                    Picker("", selection: $settings.weeklyReservePercent) {
+                        ForEach(AppSettings.weeklyReserveOptions, id: \.self) { reserve in
+                            Text(copy.reserveName(reserve)).tag(reserve)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 120)
+                }
             }
         }
     }
@@ -330,6 +434,17 @@ private struct SettingsWindowView: View {
             detail: copy.dataDescription
         ) {
             SettingsGlassCard {
+                DataHealthSummary(
+                    health: UsageDataHealth.snapshot(
+                        reading: model.reading,
+                        issue: model.issue,
+                        historySamples: historyStore.records7d().count
+                    ),
+                    copy: copy
+                )
+
+                SettingsDivider()
+
                 HStack(alignment: .top, spacing: 14) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(copy.dataSource)
@@ -369,9 +484,6 @@ private struct SettingsWindowView: View {
                     SettingsActionButton(copy.officialUsage, systemImage: "arrow.up.right.square") {
                         model.openOfficialUsagePage()
                     }
-                    SettingsActionButton(copy.checkForUpdates, systemImage: "sparkles") {
-                        onCheckForUpdates()
-                    }
                     SettingsActionButton(copy.exportCSV, systemImage: "tablecells") {
                         CSVExporter.export(historyStore: historyStore, language: settings.language)
                     }
@@ -392,6 +504,49 @@ private struct SettingsWindowView: View {
     }
 }
 
+private struct DataHealthSummary: View {
+    let health: UsageDataHealth.Snapshot
+    let copy: SettingsCopy
+
+    private var tint: Color {
+        switch health.state {
+        case .current: return Color(red: 0.18, green: 0.83, blue: 0.60)
+        case .stale: return .orange
+        case .attention: return Color(red: 1, green: 0.56, blue: 0.18)
+        case .unavailable: return Color.white.opacity(0.45)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: copy.dataHealthSymbol(health.state))
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24, height: 24)
+                .background(tint.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(copy.dataHealthTitle(health.state))
+                    .font(.subheadline.weight(.semibold))
+                Text(copy.dataHealthDetail(health))
+                    .font(.caption)
+                    .foregroundStyle(Color.white.opacity(0.50))
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+
+            Text(copy.dataHealthPill(health.state))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(tint)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(tint.opacity(0.12), in: Capsule())
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct SettingsGlassBackground: View {
     var body: some View {
         ZStack {
@@ -408,14 +563,13 @@ private struct SettingsTabBar: View {
     @Binding var selection: SettingsPane
     let copy: SettingsCopy
     let isLoading: Bool
+    let onSelect: (SettingsPane) -> Void
 
     var body: some View {
         HStack(spacing: 6) {
             ForEach(SettingsPane.allCases) { pane in
                 Button {
-                    withAnimation(.easeInOut(duration: 0.22)) {
-                        selection = pane
-                    }
+                    onSelect(pane)
                 } label: {
                     Label(copy.paneTitle(pane), systemImage: pane.systemImage)
                         .font(.system(size: 11, weight: .semibold))
@@ -484,9 +638,8 @@ private struct SettingsPage<Content: View>: View {
             }
 
             content
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 
@@ -602,6 +755,7 @@ private struct StatusPill: View {
 private struct MenuBarSettingsPreview: View {
     let reading: UsageReading?
     @ObservedObject var settings: AppSettings
+    @ObservedObject var activityStore: UsageActivityStore
     let copy: SettingsCopy
 
     private var remaining: Double {
@@ -609,12 +763,21 @@ private struct MenuBarSettingsPreview: View {
     }
 
     private var tint: Color {
+        if settings.menuBarMode == .todayTokens { return .primary }
         if remaining < 20 { return .red }
         if remaining > 80 { return .green }
         return .primary
     }
 
     private var title: String {
+        if settings.menuBarMode == .todayTokens {
+            let formatter = UIDateFormatters.formatter(
+                dateFormat: "yyyy-MM-dd",
+                localeIdentifier: "en_US_POSIX"
+            )
+            let tokens = activityStore.dailyTokens[formatter.string(from: Date())] ?? 0
+            return "T \(TokenFormat.compact(tokens, language: settings.language))"
+        }
         guard let reading else {
             return settings.menuBarMode == .tightest ? "--%" : "H --% W --%"
         }
@@ -639,6 +802,11 @@ private struct MenuBarSettingsPreview: View {
             HStack(spacing: 5) {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
+                if settings.menuBarSparkline {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.system(size: 10, weight: .semibold))
+                        .opacity(0.7)
+                }
             }
             .foregroundStyle(tint)
             .padding(.horizontal, 10)
@@ -656,6 +824,67 @@ private struct MenuBarSettingsPreview: View {
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.white.opacity(0.035))
+        )
+    }
+}
+
+private struct SettingsAboutCard: View {
+    let copy: SettingsCopy
+    let onCheckForUpdates: () -> Void
+
+    private var versionText: String {
+        let version = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        guard let version else { return "—" }
+        return build.map { "v\(version) (\($0))" } ?? "v\(version)"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ProductIdentity.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                Text(versionText)
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.white.opacity(0.48))
+            }
+
+            Spacer()
+
+            Button {
+                NSWorkspace.shared.open(
+                    URL(string: "https://github.com/\(ProductIdentity.repository)")!
+                )
+            } label: {
+                Label(copy.viewOnGitHub, systemImage: "link")
+                    .font(.caption.weight(.medium))
+            }
+            .buttonStyle(.borderless)
+
+            Button {
+                onCheckForUpdates()
+            } label: {
+                Label(copy.checkForUpdates, systemImage: "sparkles")
+                    .font(.caption.weight(.medium))
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(13)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.035))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
     }
 }
@@ -712,6 +941,18 @@ private struct SettingsCopy {
     }
     var shortWindow: String { isEnglish ? "5-hour usage" : "5 小时用量" }
     var weekWindow: String { isEnglish ? "Weekly usage" : "每周用量" }
+    var sparkline: String { isEnglish ? "Mini trend line" : "迷你趋势线" }
+    var sparklineDetail: String {
+        isEnglish
+            ? "Draw a tiny sparkline next to the menu bar value."
+            : "在菜单栏数值旁绘制一条迷你趋势线"
+    }
+    var globalHotkey: String { isEnglish ? "Global shortcut ⌥⌘U" : "全局快捷键 ⌥⌘U" }
+    var globalHotkeyDetail: String {
+        isEnglish
+            ? "Toggle the usage dashboard from anywhere."
+            : "在任意应用中按下即可打开 / 收起用量详情"
+    }
     var preview: String { isEnglish ? "Live preview" : "实时预览" }
 
     var refreshAndAlerts: String { isEnglish ? "Refresh & Alerts" : "刷新与提醒" }
@@ -730,6 +971,16 @@ private struct SettingsCopy {
     var alertThresholdDetail: String {
         isEnglish ? "Send the alert once usage falls below this level." : "剩余用量首次低于此数值时提醒"
     }
+    var weeklyReserve: String { isEnglish ? "Weekly safety reserve" : "每周安全余量" }
+    var weeklyReserveDetail: String {
+        isEnglish
+            ? "Keeps this amount as a planning buffer; it never limits Codex."
+            : "为本周后续任务预留缓冲，不会限制 Codex 使用"
+    }
+
+    func reserveName(_ value: Int) -> String {
+        value == 0 ? (isEnglish ? "None" : "不预留") : "\(value)%"
+    }
 
     var dataAndMaintenance: String { isEnglish ? "Data & Maintenance" : "数据与维护" }
     var dataDescription: String {
@@ -741,8 +992,45 @@ private struct SettingsCopy {
     var refreshNow: String { isEnglish ? "Refresh now" : "立即刷新" }
     var officialUsage: String { isEnglish ? "Official Usage" : "官方 Usage" }
     var checkForUpdates: String { isEnglish ? "Check updates" : "检查更新" }
+    var viewOnGitHub: String { isEnglish ? "GitHub" : "GitHub 仓库" }
     var exportCSV: String { isEnglish ? "Export CSV" : "导出 CSV" }
     var diagnosticReport: String { isEnglish ? "Diagnostics" : "诊断报告" }
+
+    func dataHealthTitle(_ state: UsageDataHealth.State) -> String {
+        switch state {
+        case .current: return isEnglish ? "Usage data is current" : "用量数据可信"
+        case .stale: return isEnglish ? "Usage data may be stale" : "用量数据可能过期"
+        case .attention: return isEnglish ? "Usage data needs attention" : "用量数据需要关注"
+        case .unavailable: return isEnglish ? "Usage data is unavailable" : "暂未获取用量数据"
+        }
+    }
+
+    func dataHealthPill(_ state: UsageDataHealth.State) -> String {
+        switch state {
+        case .current: return isEnglish ? "Current" : "可信"
+        case .stale: return isEnglish ? "Stale" : "过期"
+        case .attention: return isEnglish ? "Check" : "检查"
+        case .unavailable: return isEnglish ? "Waiting" : "等待"
+        }
+    }
+
+    func dataHealthSymbol(_ state: UsageDataHealth.State) -> String {
+        switch state {
+        case .current: return "checkmark.shield.fill"
+        case .stale: return "clock.badge.exclamationmark"
+        case .attention: return "exclamationmark.triangle.fill"
+        case .unavailable: return "arrow.clockwise.circle"
+        }
+    }
+
+    func dataHealthDetail(_ health: UsageDataHealth.Snapshot) -> String {
+        let source = health.source.map { $0.displayName(language: locale) }
+            ?? (isEnglish ? "No source yet" : "尚无数据来源")
+        let samples = isEnglish
+            ? "\(health.historySamples) local samples (7d)"
+            : "近 7 天 \(health.historySamples) 条本地样本"
+        return "\(source) · \(samples)"
+    }
 
     func paneTitle(_ pane: SettingsPane) -> String {
         switch pane {
@@ -774,6 +1062,8 @@ private struct SettingsCopy {
             return isEnglish ? "H / W" : "H / W"
         case .tightest:
             return isEnglish ? "Tightest" : "最紧张额度"
+        case .todayTokens:
+            return isEnglish ? "Today" : "今日 Tokens"
         }
     }
 

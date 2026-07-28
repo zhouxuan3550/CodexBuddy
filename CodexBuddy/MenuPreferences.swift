@@ -53,10 +53,36 @@ extension MenuBarCoordinator {
             dashboardWindow = UsageDashboardWindowController(
                 model: model,
                 settings: settings,
+                historyStore: historyStore,
                 activityStore: activityStore
             )
         }
         dashboardWindow?.show()
+    }
+
+    /// Global-hotkey and URL-scheme entry: hides the dashboard when it is
+    /// already frontmost, otherwise brings it up.
+    func toggleUsageDashboard() {
+        if let window = dashboardWindow?.window, window.isVisible, window.isKeyWindow {
+            window.orderOut(nil)
+            return
+        }
+        openUsageDashboard()
+    }
+
+    @objc func openTaskReadiness() {
+        showTaskReadiness(copyResult: false)
+    }
+
+    func showTaskReadiness(copyResult: Bool) {
+        if taskReadinessWindow == nil {
+            taskReadinessWindow = TaskReadinessWindowController(
+                model: model,
+                settings: settings,
+                historyStore: historyStore
+            )
+        }
+        taskReadinessWindow?.show(copyResult: copyResult)
     }
 
     @objc func openSettings() {
@@ -65,6 +91,7 @@ extension MenuBarCoordinator {
                 model: model,
                 settings: settings,
                 historyStore: historyStore,
+                activityStore: activityStore,
                 onCheckForUpdates: { [weak self] in
                     self?.checkForUpdates()
                 }

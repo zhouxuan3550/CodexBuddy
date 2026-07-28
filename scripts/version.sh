@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-APP_VERSION="0.7.3"
-APP_BUILD_NUMBER="16"
+APP_VERSION="1.0.0"
+APP_BUILD_NUMBER="23"

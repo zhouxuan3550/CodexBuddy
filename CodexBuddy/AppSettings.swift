@@ -6,6 +6,7 @@ import ServiceManagement
 final class AppSettings: ObservableObject {
     static let refreshIntervals: [TimeInterval] = [5, 15, 30, 60]
     static let notificationThresholds = [10, 20, 30]
+    static let weeklyReserveOptions = [0, 10, 20, 30]
 
     @Published var refreshInterval: TimeInterval {
         didSet { defaults.set(refreshInterval, forKey: Keys.refreshInterval) }
@@ -39,6 +40,20 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(floatingWidgetEnabled, forKey: Keys.floatingWidgetEnabled) }
     }
 
+    @Published var menuBarSparkline: Bool {
+        didSet { defaults.set(menuBarSparkline, forKey: Keys.menuBarSparkline) }
+    }
+
+    @Published var globalHotkeyEnabled: Bool {
+        didSet { defaults.set(globalHotkeyEnabled, forKey: Keys.globalHotkeyEnabled) }
+    }
+
+    /// A soft buffer used by the weekly pacing plan. It only informs the UI;
+    /// CodexBuddy never blocks or changes Codex usage.
+    @Published var weeklyReservePercent: Int {
+        didSet { defaults.set(weeklyReservePercent, forKey: Keys.weeklyReservePercent) }
+    }
+
     @Published private(set) var launchAtLoginEnabled: Bool
     @Published private(set) var launchAtLoginRequiresApproval: Bool
     @Published private(set) var launchAtLoginIsUpdating = false
@@ -67,6 +82,10 @@ final class AppSettings: ObservableObject {
         menuBarMode = savedMode.flatMap(StatusDisplayMode.init(rawValue:))
             ?? (savedMode == "worst" ? .tightest : .allWindows)
         floatingWidgetEnabled = defaults.object(forKey: Keys.floatingWidgetEnabled) as? Bool ?? false
+        menuBarSparkline = defaults.object(forKey: Keys.menuBarSparkline) as? Bool ?? false
+        globalHotkeyEnabled = defaults.object(forKey: Keys.globalHotkeyEnabled) as? Bool ?? true
+        let savedReserve = defaults.object(forKey: Keys.weeklyReservePercent) as? Int ?? 0
+        weeklyReservePercent = Self.weeklyReserveOptions.contains(savedReserve) ? savedReserve : 0
 
         let status = SMAppService.mainApp.status
         launchAtLoginEnabled = Self.isLaunchAtLoginRegistered(status)
@@ -184,5 +203,8 @@ final class AppSettings: ObservableObject {
         static let showWeekWindow = "showWeekWindow"
         static let menuBarMode = "menuBarMode"
         static let floatingWidgetEnabled = "floatingWidgetEnabled"
+        static let menuBarSparkline = "menuBarSparkline"
+        static let globalHotkeyEnabled = "globalHotkeyEnabled"
+        static let weeklyReservePercent = "weeklyReservePercent"
     }
 }

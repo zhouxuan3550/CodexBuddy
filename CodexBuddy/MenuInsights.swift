@@ -2,7 +2,7 @@ import Cocoa
 
 // Usage insights, exports, and update actions
 extension MenuBarCoordinator {
-    // MARK: - v0.4 Features
+    // MARK: - Updates and menu insights
 
     func observeUpdateChecker() {
         updateChecker.$availableUpdate

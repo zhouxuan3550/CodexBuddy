@@ -104,7 +104,7 @@ final class UpdateChecker {
                 latestSHA256URL = (shaAsset?["browser_download_url"] as? String).flatMap { URL(string: $0) }
             }
 
-            if isNewer(release.version, than: currentVersion) {
+            if Self.isNewer(release.version, than: currentVersion) {
                 availableUpdate = release
             } else {
                 availableUpdate = nil
@@ -114,25 +114,45 @@ final class UpdateChecker {
         }
     }
 
-    private func isNewer(_ candidate: String, than current: String) -> Bool {
-        let parse: (String) -> [Int] = { version in
-            version.split(separator: ".").compactMap { Int($0) }
+    /// SemVer-style comparison: numeric core first, then pre-release rules
+    /// (a pre-release precedes its release: 0.8.0-beta.1 < 0.8.0).
+    nonisolated static func isNewer(_ candidate: String, than current: String) -> Bool {
+        let split: (String) -> (core: [Int], prerelease: String?) = { version in
+            let parts = version.split(separator: "-", maxSplits: 1)
+            let core = parts[0].split(separator: ".").compactMap { Int($0) }
+            let prerelease = parts.count > 1 ? String(parts[1]) : nil
+            return (core, prerelease)
         }
-        let c = parse(candidate)
-        let cur = parse(current)
+        let c = split(candidate)
+        let cur = split(current)
 
-        for i in 0..<max(c.count, cur.count) {
-            let cv = i < c.count ? c[i] : 0
-            let curv = i < cur.count ? cur[i] : 0
+        for i in 0..<max(c.core.count, cur.core.count) {
+            let cv = i < c.core.count ? c.core[i] : 0
+            let curv = i < cur.core.count ? cur.core[i] : 0
             if cv > curv { return true }
             if cv < curv { return false }
         }
-        return false
+
+        // Same numeric core: release > pre-release; two pre-releases compare
+        // lexically (sufficient for beta.1/beta.2-style tags).
+        switch (c.prerelease, cur.prerelease) {
+        case (nil, nil): return false
+        case (nil, .some): return true
+        case (.some, nil): return false
+        case let (.some(lhs), .some(rhs)): return lhs > rhs
+        }
     }
 
-    private func isoDate(_ string: String) -> Date? {
+    // ISO8601DateFormatter is documented thread-safe, hence nonisolated(unsafe).
+    private nonisolated(unsafe) static let fractionalISOFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: string) ?? ISO8601DateFormatter().date(from: string)
+        return formatter
+    }()
+
+    private nonisolated(unsafe) static let plainISOFormatter = ISO8601DateFormatter()
+
+    private func isoDate(_ string: String) -> Date? {
+        Self.fractionalISOFormatter.date(from: string) ?? Self.plainISOFormatter.date(from: string)
     }
 }

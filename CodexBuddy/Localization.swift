@@ -67,6 +67,10 @@ enum L10nKey {
     case floatingWidget
     case resetCountdownTitle
     case resetCountdownBody
+    case depletionForecastShortTitle
+    case depletionForecastWeekTitle
+    case weeklyReportTitle
+    case surplusReminderTitle
     case tokenActivity
     case noActivityData
     case less
@@ -161,6 +165,10 @@ enum L10n {
         case .floatingWidget: return "桌面悬浮窗"
         case .resetCountdownTitle: return "用量即将重置"
         case .resetCountdownBody: return "用量将在 5 分钟内重置，可放心使用"
+        case .depletionForecastShortTitle: return "5 小时额度耗尽预警"
+        case .depletionForecastWeekTitle: return "每周额度耗尽预警"
+        case .weeklyReportTitle: return "每周用量复盘"
+        case .surplusReminderTitle: return "每周额度还有富余"
         case .tokenActivity: return "Token 活动"
         case .noActivityData: return "暂无 Token 活动数据，使用一段时间后自动生成"
         case .less: return "少"
@@ -224,6 +232,10 @@ enum L10n {
         case .floatingWidget: return "Desktop Floating Widget"
         case .resetCountdownTitle: return "Usage Reset Imminent"
         case .resetCountdownBody: return "Usage will reset within 5 minutes"
+        case .depletionForecastShortTitle: return "5-Hour Quota Forecast"
+        case .depletionForecastWeekTitle: return "Weekly Quota Forecast"
+        case .weeklyReportTitle: return "Weekly Usage Recap"
+        case .surplusReminderTitle: return "Weekly Quota Surplus"
         case .tokenActivity: return "Token Activity"
         case .noActivityData: return "No token activity yet — will populate after some usage"
         case .less: return "Less"

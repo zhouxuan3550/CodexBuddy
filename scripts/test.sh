@@ -4,8 +4,11 @@ set -euo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$project_root/scripts/version.sh"
 
-if [[ "$APP_VERSION" != "0.7.3" || "$APP_BUILD_NUMBER" != "16" ]]; then
-  echo "Expected v0.7.3 build 16, found v$APP_VERSION build $APP_BUILD_NUMBER" >&2
+# Guard against version drift: the top entry of RELEASE_NOTES.md must match
+# the version declared in scripts/version.sh.
+notes_version="$(head -1 "$project_root/RELEASE_NOTES.md" | sed -E 's/^# CodexBuddy v//')"
+if [[ "$notes_version" != "$APP_VERSION" ]]; then
+  echo "RELEASE_NOTES.md leads with v$notes_version but version.sh declares v$APP_VERSION" >&2
   exit 1
 fi
 
@@ -16,12 +19,17 @@ core_sources=(
   Localization.swift
   AppSettings.swift
   UpdateChecker.swift
+  UIDateFormatters.swift
   UsageDomain.swift
+  UsageDataHealth.swift
   UsageReadingSource.swift
   LocalUsageReader.swift
   UsageViewModel.swift
   UsageHistoryStore.swift
+  UsageActivityStore.swift
   DepletionEstimator.swift
+  QuotaPacing.swift
+  TaskReadiness.swift
   UsageFileMonitor.swift
   SingleInstanceCoordinator.swift
 )
