@@ -8,6 +8,10 @@ enum UsageReadError: Error, Equatable {
 
 enum UsageHealthSignal: Equatable {
     case sessionFormatChanged(evidenceAt: Date)
+    /// A newer event claimed a large quota recovery before the previous
+    /// window's reset. The reader keeps the last internally consistent value
+    /// instead of presenting an optimistic, likely cross-session value.
+    case suspiciousQuotaRecovery(evidenceAt: Date)
 }
 
 struct UsageReadOutcome {

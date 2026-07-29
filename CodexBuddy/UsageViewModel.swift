@@ -6,6 +6,7 @@ enum UsageViewModelIssue: Equatable {
     case sourceUnavailable
     case unreadable
     case formatChanged
+    case suspiciousQuotaRecovery
 }
 
 @MainActor
@@ -103,17 +104,24 @@ final class UsageViewModel: ObservableObject {
     }
 
     private func apply(_ signal: UsageHealthSignal?) {
-        guard case .sessionFormatChanged(let evidenceAt) = signal else {
+        guard let signal else {
             formatSignalCount = 0
             lastFormatEvidence = nil
             issue = nil
             return
         }
-        if evidenceAt != lastFormatEvidence {
-            formatSignalCount += 1
-            lastFormatEvidence = evidenceAt
+        switch signal {
+        case .suspiciousQuotaRecovery:
+            formatSignalCount = 0
+            lastFormatEvidence = nil
+            issue = .suspiciousQuotaRecovery
+        case .sessionFormatChanged(let evidenceAt):
+            if evidenceAt != lastFormatEvidence {
+                formatSignalCount += 1
+                lastFormatEvidence = evidenceAt
+            }
+            issue = formatSignalCount >= 2 ? .formatChanged : nil
         }
-        issue = formatSignalCount >= 2 ? .formatChanged : nil
     }
 
     private func localized(_ issue: UsageViewModelIssue, language: AppLanguage) -> String {
@@ -124,6 +132,8 @@ final class UsageViewModel: ObservableObject {
             return L10n.text(.unreadableUsage, language: language)
         case .formatChanged:
             return L10n.text(.schemaDrift, language: language)
+        case .suspiciousQuotaRecovery:
+            return L10n.text(.suspiciousQuotaRecovery, language: language)
         }
     }
 }

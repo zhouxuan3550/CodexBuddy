@@ -25,8 +25,13 @@ struct LocalUsageReader: UsageReadingSource {
             }
             throw UsageReadError.unavailable
         }
-        let signal = sessionScan.formatEvidence.map {
-            UsageHealthSignal.sessionFormatChanged(evidenceAt: $0)
+        let signal: UsageHealthSignal?
+        if let evidence = sessionScan.suspiciousRecoveryEvidence {
+            signal = .suspiciousQuotaRecovery(evidenceAt: evidence)
+        } else if let evidence = sessionScan.formatEvidence {
+            signal = .sessionFormatChanged(evidenceAt: evidence)
+        } else {
+            signal = nil
         }
         return UsageReadOutcome(reading: reading, healthSignal: signal)
     }
@@ -45,7 +50,7 @@ struct LocalUsageReader: UsageReadingSource {
             """
             select ts, feedback_log_body
             from logs
-            where target = 'codex_http_client::default_client'
+            where target like 'codex_http_client%'
               and feedback_log_body like '%x-codex-primary-used-percent%'
             order by ts desc, ts_nanos desc, id desc
             limit 1;
@@ -99,11 +104,13 @@ struct LocalUsageReader: UsageReadingSource {
     private struct SessionScan {
         var reading: UsageReading?
         var formatEvidence: Date?
+        var suspiciousRecoveryEvidence: Date?
     }
 
     private enum SessionFileResult {
         case reading(UsageReading)
         case malformed(Date)
+        case suspiciousRecovery(UsageReading, evidence: Date)
         case noRelevantEvent
     }
 
@@ -140,6 +147,13 @@ struct LocalUsageReader: UsageReadingSource {
                 if scan.formatEvidence == nil || evidence > scan.formatEvidence! {
                     scan.formatEvidence = evidence
                 }
+            case .suspiciousRecovery(let reading, let evidence):
+                if scan.reading == nil || reading.updatedAt > scan.reading!.updatedAt {
+                    scan.reading = reading
+                }
+                if scan.suspiciousRecoveryEvidence == nil || evidence > scan.suspiciousRecoveryEvidence! {
+                    scan.suspiciousRecoveryEvidence = evidence
+                }
             case .noRelevantEvent:
                 break
             }
@@ -166,6 +180,7 @@ struct LocalUsageReader: UsageReadingSource {
                 text.removeSubrange(...newline)
             }
 
+            var newestReading: UsageReading?
             for rawLine in text.split(separator: "\n").reversed() {
                 guard
                     let data = String(rawLine).data(using: .utf8),
@@ -196,19 +211,53 @@ struct LocalUsageReader: UsageReadingSource {
                             ?? (values["balance"] as? NSNumber).map(String.init(describing:))
                     )
                 }
-                return .reading(UsageReading(
+                let reading = UsageReading(
                     shortWindow: short,
                     weekWindow: week,
                     updatedAt: eventDate,
                     source: .sessionLog,
                     planName: limits["plan_type"] as? String,
                     credits: creditState
-                ))
+                )
+
+                guard let newerReading = newestReading else {
+                    newestReading = reading
+                    continue
+                }
+                if hasSuspiciousQuotaRecovery(newerReading, replacing: reading) {
+                    return .suspiciousRecovery(reading, evidence: newerReading.updatedAt)
+                }
+                return .reading(newerReading)
             }
+            if let newestReading { return .reading(newestReading) }
         } catch {
             return .noRelevantEvent
         }
         return .noRelevantEvent
+    }
+
+    /// Rate-limit events are occasionally emitted from a stale or different
+    /// local session. A large increase before the previously advertised reset
+    /// cannot be a normal quota reset, so it must not replace a trusted value.
+    private static func hasSuspiciousQuotaRecovery(
+        _ candidate: UsageReading,
+        replacing previous: UsageReading
+    ) -> Bool {
+        let previousWindows = [previous.shortWindow, previous.weekWindow].compactMap { $0 }
+        let candidateWindows = [candidate.shortWindow, candidate.weekWindow].compactMap { $0 }
+
+        return candidateWindows.contains { candidateWindow in
+            guard let previousWindow = previousWindows.first(where: { $0.isWeekly == candidateWindow.isWeekly }) else {
+                return false
+            }
+            guard candidateWindow.remainingPercent - previousWindow.remainingPercent >= 15 else {
+                return false
+            }
+            guard let previousReset = previousWindow.resetAt else {
+                return false
+            }
+            return candidate.updatedAt.addingTimeInterval(60) < previousReset
+        }
     }
 
     private static func parseWindow(_ rawValue: Any?) -> QuotaWindow? {
@@ -229,7 +278,7 @@ struct LocalUsageReader: UsageReadingSource {
     }
 
     private static func headerWindow(named name: String, defaultMinutes: Int, body: String) -> QuotaWindow? {
-        guard let used = headerInteger("x-codex-\(name)-used-percent", body: body) else {
+        guard let used = headerDouble("x-codex-\(name)-used-percent", body: body) else {
             return nil
         }
         let minutes = headerInteger("x-codex-\(name)-window-minutes", body: body) ?? defaultMinutes
@@ -245,20 +294,24 @@ struct LocalUsageReader: UsageReadingSource {
         }
         return QuotaWindow(
             minutes: minutes,
-            remainingPercent: min(100, max(0, 100 - used)),
+            remainingPercent: min(100, max(0, 100 - Int(used.rounded()))),
             resetAt: resetAt
         )
     }
 
     private static func headerInteger(_ name: String, body: String) -> Int? {
+        headerDouble(name, body: body).map { Int($0) }
+    }
+
+    private static func headerDouble(_ name: String, body: String) -> Double? {
         let escaped = NSRegularExpression.escapedPattern(for: name)
-        let pattern = "\"\(escaped)\"\\s*:\\s*\"?([0-9]+)\"?"
+        let pattern = "\"\(escaped)\"\\s*:\\s*\"?([0-9]+(?:\\.[0-9]+)?)\"?"
         guard
             let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
             let match = expression.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)),
             let valueRange = Range(match.range(at: 1), in: body)
         else { return nil }
-        return Int(body[valueRange])
+        return Double(body[valueRange])
     }
 
     // ISO8601DateFormatter is thread-safe; cache instances since creation is expensive
