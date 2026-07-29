@@ -15,6 +15,7 @@ struct CoreTests {
         await testSessionFixture()
         await testResponseHeaderFallback()
         await testNewestSessionEventWins()
+        await testSuspiciousSessionRecoveryIsRejected()
         await testMalformedSessionReportsHealthSignal()
         await testViewModelDebouncesFormatWarnings()
         testHistoryDeduplicatesEvents()
@@ -263,13 +264,14 @@ struct CoreTests {
             try makeLogDatabase(
                 at: database,
                 timestamp: 100,
-                body: #"{"x-codex-primary-used-percent":"74","x-codex-primary-window-minutes":"10080","x-codex-primary-reset-at":"2000000000"}"#
+                body: #"{"x-codex-primary-used-percent":"74.5","x-codex-primary-window-minutes":"10080","x-codex-primary-reset-at":"2000000000"}"#,
+                target: "codex_http_client::client"
             )
             let reading = try await LocalUsageReader(
                 databaseURL: database,
                 sessionsURL: sandbox.appendingPathComponent("empty")
             ).readReading()
-            expect(reading.completeStatusText == "W 26%", "response headers provide fallback usage")
+            expect(reading.completeStatusText == "W 25%", "response headers provide fallback usage from the current client target")
             expect(reading.source == .responseHeaders, "fallback source is recorded")
             expect(reading.updatedAt == Date(timeIntervalSince1970: 100), "fallback keeps its event time")
         } catch {
@@ -301,6 +303,32 @@ struct CoreTests {
             expect(reading.completeStatusText == "W 20%", "newest event wins across session files")
         } catch {
             expect(false, "newest session event is selected")
+        }
+    }
+
+    private static func testSuspiciousSessionRecoveryIsRejected() async {
+        let sandbox = temporaryDirectory("Recovery")
+        let sessions = sandbox.appendingPathComponent("sessions")
+        do {
+            try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: sandbox) }
+            let previous = #"{"timestamp":"2026-07-29T03:20:00.000Z","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":41,"window_minutes":10080,"resets_at":1785813194}}}}"#
+            let inconsistent = #"{"timestamp":"2026-07-29T05:25:00.000Z","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":0,"window_minutes":10080,"resets_at":1785907474}}}}"#
+            let rollout = sessions.appendingPathComponent("rollout.jsonl")
+            try "\(previous)\n\(inconsistent)\n".write(to: rollout, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: rollout.path)
+            let outcome = try await LocalUsageReader(
+                databaseURL: sandbox.appendingPathComponent("missing.sqlite"),
+                sessionsURL: sessions
+            ).read()
+            expect(outcome.reading.completeStatusText == "W 59%", "an early quota recovery retains the last consistent weekly value")
+            if case .suspiciousQuotaRecovery = outcome.healthSignal {
+                expect(true, "an early quota recovery is reported")
+            } else {
+                expect(false, "an early quota recovery is reported")
+            }
+        } catch {
+            expect(false, "suspicious session recovery is rejected")
         }
     }
 
@@ -660,8 +688,14 @@ struct CoreTests {
         }
     }
 
-    private static func makeLogDatabase(at url: URL, timestamp: Int, body: String) throws {
+    private static func makeLogDatabase(
+        at url: URL,
+        timestamp: Int,
+        body: String,
+        target: String = "codex_http_client::default_client"
+    ) throws {
         let escapedBody = body.replacingOccurrences(of: "'", with: "''")
+        let escapedTarget = target.replacingOccurrences(of: "'", with: "''")
         try runSQLite(url, sql: """
         create table logs (
             id integer primary key,
@@ -672,7 +706,7 @@ struct CoreTests {
             feedback_log_body text
         );
         insert into logs (id, ts, ts_nanos, level, target, feedback_log_body)
-        values (1, \(timestamp), 0, 'INFO', 'codex_http_client::default_client', '\(escapedBody)');
+        values (1, \(timestamp), 0, 'INFO', '\(escapedTarget)', '\(escapedBody)');
         """)
     }
 

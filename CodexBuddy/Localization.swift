@@ -39,6 +39,7 @@ enum L10nKey {
     case notLoggedIn
     case unreadableUsage
     case schemaDrift
+    case suspiciousQuotaRecovery
     case dataSource
     case sessionEvent
     case responseHeaderFallback
@@ -137,6 +138,7 @@ enum L10n {
         case .notLoggedIn: return "未检测到 Codex 登录状态。请先登录 Codex 后重试。"
         case .unreadableUsage: return "无法自动读取官方 Usage。请打开官方 Usage 页面查看。"
         case .schemaDrift: return "会话日志格式可能已变化，当前显示的是备用数据。请检查 App 更新。"
+        case .suspiciousQuotaRecovery: return "检测到未到重置时间的额度回升，已保留上一条可信数据。请在官方 Usage 确认。"
         case .dataSource: return "数据来源"
         case .sessionEvent: return "实时事件"
         case .responseHeaderFallback: return "响应头备用"
@@ -204,6 +206,7 @@ enum L10n {
         case .notLoggedIn: return "Codex login was not detected. Sign in to Codex and try again."
         case .unreadableUsage: return "Official Usage could not be read automatically. Open the official Usage page to check."
         case .schemaDrift: return "The session log format may have changed. Fallback data is shown; check for app updates."
+        case .suspiciousQuotaRecovery: return "A quota recovery appeared before its reset. The last consistent value is kept; confirm it in Official Usage."
         case .dataSource: return "Source"
         case .sessionEvent: return "Live event"
         case .responseHeaderFallback: return "Response-header fallback"
