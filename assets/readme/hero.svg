@@ -1,4 +1,6 @@
-<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<title id="title">CodexBuddy — 本机 Codex 用量助手</title>
+<desc id="desc">CodexBuddy 的本地 Codex 额度概览，展示短时和每周窗口、数据状态与本机数据路径。</desc>
 <g clip-path="url(#clip0_1_2)">
 <path d="M1172 0H28C12.536 0 0 12.536 0 28V332C0 347.464 12.536 360 28 360H1172C1187.46 360 1200 347.464 1200 332V28C1200 12.536 1187.46 0 1172 0Z" fill="#0D0F12"/>
 <path d="M1172 1H28C13.0883 1 1 13.0883 1 28V332C1 346.912 13.0883 359 28 359H1172C1186.91 359 1199 346.912 1199 332V28C1199 13.0883 1186.91 1 1172 1Z" stroke="#2B3037"/>
