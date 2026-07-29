@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+  <title id="title">CodexBuddy 的本地用量决策流程</title>
+  <desc id="desc">本地 Codex 会话事件与响应头进入 CodexBuddy，生成可信度、重置时间和消耗节奏，输出菜单栏、任务前检查和提醒。</desc>
+  <rect width="1200" height="300" rx="24" fill="#101317"/>
+  <rect x="1" y="1" width="1198" height="298" rx="23" fill="none" stroke="#2a3037"/>
+  <text x="56" y="58" fill="#edf1f5" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="32" font-weight="700">本机数据如何变成可执行判断</text>
+  <text x="56" y="88" fill="#8993a0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="19">不上传对话内容，不依赖浏览器 Cookie，也不需要登录。</text>
+
+  <g id="source" transform="translate(56 132)">
+    <rect width="286" height="118" rx="16" fill="#171c22" stroke="#303842"/>
+    <circle cx="31" cy="32" r="8" fill="#2d7eea"/>
+    <text x="52" y="39" fill="#e9eef4" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="23" font-weight="650">Codex 本地事件</text>
+    <text x="24" y="77" fill="#9ca6b1" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="18">sessions/*.jsonl</text>
+    <text x="24" y="103" fill="#9ca6b1" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="18">logs_2.sqlite</text>
+  </g>
+  <path d="M362 191H428" stroke="#5d6875" stroke-width="2"/>
+  <path d="M418 184L430 191L418 198" fill="none" stroke="#5d6875" stroke-width="2"/>
+  <g id="interpret" transform="translate(450 132)">
+    <rect width="300" height="118" rx="16" fill="#171c22" stroke="#303842"/>
+    <circle cx="31" cy="32" r="8" fill="#34d979"/>
+    <text x="52" y="39" fill="#e9eef4" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="23" font-weight="650">可信度与节奏</text>
+    <text x="24" y="77" fill="#9ca6b1" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="18">H / W · 重置 · 数据年龄</text>
+    <text x="24" y="103" fill="#9ca6b1" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="18">近期消耗 · 安全余量</text>
+  </g>
+  <path d="M770 191H836" stroke="#5d6875" stroke-width="2"/>
+  <path d="M826 184L838 191L826 198" fill="none" stroke="#5d6875" stroke-width="2"/>
+  <g id="decision" transform="translate(858 132)">
+    <rect width="286" height="118" rx="16" fill="#171c22" stroke="#303842"/>
+    <circle cx="31" cy="32" r="8" fill="#a577ff"/>
+    <text x="52" y="39" fill="#e9eef4" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="23" font-weight="650">你的下一步</text>
+    <text x="24" y="77" fill="#9ca6b1" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="18">菜单栏 · 悬浮球 · 提醒</text>
+    <text x="24" y="103" fill="#9ca6b1" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif" font-size="18">任务前检查 · 本地报告</text>
+  </g>
+</svg>
