@@ -16,8 +16,8 @@
 
 | 你的 Mac | 下载 |
 | --- | --- |
-| Apple Silicon（M1 / M2 / M3 / M4） | [下载 arm64 DMG](https://github.com/zhouxuan3550/CodexBuddy/releases/latest/download/CodexBuddy-v1.0.0-arm64.dmg) |
-| Intel Mac | [下载 x86_64 DMG](https://github.com/zhouxuan3550/CodexBuddy/releases/latest/download/CodexBuddy-v1.0.0-x86_64.dmg) |
+| Apple Silicon（M1 / M2 / M3 / M4） | [打开 Releases，选择 `arm64` DMG](https://github.com/zhouxuan3550/CodexBuddy/releases/latest) |
+| Intel Mac | [打开 Releases，选择 `x86_64` DMG](https://github.com/zhouxuan3550/CodexBuddy/releases/latest) |
 
 下载后将 `CodexBuddy.app` 移到“应用程序”文件夹并打开即可。首次打开若被 macOS 拦截，请在“系统设置 → 隐私与安全性”中确认允许。
 
